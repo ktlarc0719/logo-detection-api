@@ -8,3 +8,6 @@ echo "=================================="
 sudo apt update
 sudo apt install -y curl
 curl -sSL https://raw.githubusercontent.com/ktlarc0719/logo-detection-api/refs/heads/main/scripts/vps_setup.sh | bash
+
+
+curl -sSL https://raw.githubusercontent.com/ktlarc0719/logo-detection-api/refs/heads/main/scripts/vps_monitor_test.sh | bash
