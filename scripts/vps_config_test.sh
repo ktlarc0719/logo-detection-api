@@ -175,7 +175,8 @@ monitor_memory() {
     local config_name=$1
     local log_file="/tmp/memory_${config_name}_$(date +%Y%m%d_%H%M%S).log"
     
-    echo "timestamp,system_used_mb,docker_mem_mb" > "$log_file"
+    # Don't write header - just start with data
+    # echo "timestamp,system_used_mb,docker_mem_mb" > "$log_file"
     
     while true; do
         # System memory
@@ -275,9 +276,11 @@ with open('$file', 'r') as f:
         fi
     done
     
-    # Memory stats
-    if [ -f "/tmp/memory_${config}.log" ]; then
-        avg_docker_mem=$(awk -F',' 'NR>1 && $3 ~ /^[0-9.]+$/ {sum+=$3; count++} END {if(count>0) printf "%.1f", sum/count; else print "N/A"}' "/tmp/memory_${config}.log")
+    # Memory stats - look for files with timestamp
+    mem_file=$(ls -t /tmp/memory_${config}_*.log 2>/dev/null | head -1)
+    if [ -f "$mem_file" ]; then
+        # No header in memory files, process all lines
+        avg_docker_mem=$(awk -F',' '$3 ~ /^[0-9.]+$/ {sum+=$3; count++} END {if(count>0) printf "%.1f", sum/count; else print "N/A"}' "$mem_file")
         echo "  Avg Docker Memory: ${avg_docker_mem} MB"
     fi
     
