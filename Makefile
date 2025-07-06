@@ -20,7 +20,8 @@ help:
 
 # Git commands
 git:
-	@echo "Pushing changes to git..."
+	@echo "Syncing with git..."
+	@git pull origin main --rebase || git pull origin main
 	@git add .
 	@git commit -m "Update $$(date +%Y-%m-%d_%H:%M:%S)" || true
 	@git push origin main
