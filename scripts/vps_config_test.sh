@@ -92,7 +92,7 @@ restart_container() {
 run_test() {
     local -n config=$1
     local batch_size=$2
-    local result_file="/tmp/test_${config[name]}_${batch_size}.json"
+    local result_file="/tmp/test_${config[name]}_${batch_size}_$(date +%Y%m%d_%H%M%S).json"
     
     echo "  Testing batch size: $batch_size"
     
@@ -106,10 +106,30 @@ print(json.dumps(urls[:$batch_size]))
     # Run test with timing
     local start_time=$(date +%s.%N)
     
+    # Build request body for /api/v1/process/batch
+    local images_array=""
+    for ((i=0; i<batch_size; i++)); do
+        if [ $i -gt 0 ]; then
+            images_array+=","
+        fi
+        images_array+="{\"id\": \"img$i\", \"image_url\": $(echo "$urls" | python3 -c "import json, sys; urls=json.load(sys.stdin); print(json.dumps(urls[$i]))")}"
+    done
+    
+    local request_body="{
+        \"batch_id\": \"test-${config[name]}-${batch_size}-$(date +%s)\",
+        \"images\": [$images_array],
+        \"options\": {
+            \"confidence_threshold\": 0.5,
+            \"max_detections\": 10,
+            \"enable_brand_normalization\": true,
+            \"enable_category_classification\": true
+        }
+    }"
+    
     # Make the API call
-    local http_response=$(curl -s -X POST "$API_URL/detect/batch" \
+    local http_response=$(curl -s -X POST "$API_URL/api/v1/process/batch" \
         -H "Content-Type: application/json" \
-        -d "{\"urls\": $urls}" \
+        -d "$request_body" \
         -o /tmp/response_body.json \
         -w '{"http_code": %{http_code}, "time_total": %{time_total}}')
     
@@ -140,7 +160,7 @@ EOF
 # Function to monitor memory during test
 monitor_memory() {
     local config_name=$1
-    local log_file="/tmp/memory_${config_name}.log"
+    local log_file="/tmp/memory_${config_name}_$(date +%Y%m%d_%H%M%S).log"
     
     echo "timestamp,system_used_mb,docker_mem_mb" > "$log_file"
     
