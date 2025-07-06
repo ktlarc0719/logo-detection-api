@@ -118,7 +118,7 @@ config_name = '${config[name]}'
 images = []
 for i in range(min(batch_size, len(urls))):
     images.append({
-        'id': f'img{i}',
+        'id': i,
         'image_url': urls[i]
     })
 
