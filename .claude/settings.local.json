@@ -24,7 +24,8 @@
       "Bash(pip3 install:*)",
       "Bash(apt-get:*)",
       "Bash(apt-get install:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git branch:*)"
     ],
     "deny": []
   }
