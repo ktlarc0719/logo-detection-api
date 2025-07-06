@@ -43,38 +43,7 @@ declare -A CONFIG_3=(
 )
 
 # Sample URLs
-SAMPLE_URLS='[
-    "https://static.mercdn.net/item/detail/orig/photos/m47628860505_1.jpg?1740720390",
-    "https://static.mercdn.net/item/detail/orig/photos/m44609767648_1.jpg?1750939240",
-    "https://static.mercdn.net/item/detail/orig/photos/m88478925057_1.jpg?1662265812",
-    "https://static.mercdn.net/item/detail/orig/photos/m96001970769_1.jpg?1750953394",
-    "https://static.mercdn.net/item/detail/orig/photos/m48931146074_1.jpg?1740738532",
-    "https://static.mercdn.net/item/detail/orig/photos/m38469222607_1.jpg?1750821382",
-    "https://static.mercdn.net/item/detail/orig/photos/m88549534663_1.jpg?1750020537",
-    "https://static.mercdn.net/item/detail/orig/photos/m78444107154_1.jpg?1729065587",
-    "https://static.mercdn.net/item/detail/orig/photos/m99866594532_1.jpg?1697632923",
-    "https://static.mercdn.net/item/detail/orig/photos/m21519488926_1.jpg?1748441244",
-    "https://static.mercdn.net/item/detail/orig/photos/m30659710715_1.jpg?1704007113",
-    "https://static.mercdn.net/item/detail/orig/photos/m83639912369_1.jpg?1704719348",
-    "https://static.mercdn.net/item/detail/orig/photos/m96459104257_1.jpg?1750965433",
-    "https://static.mercdn.net/item/detail/orig/photos/m13795698389_1.jpg?1731027420",
-    "https://static.mercdn.net/item/detail/orig/photos/m62172900593_1.jpg?1734682836",
-    "https://static.mercdn.net/item/detail/orig/photos/m67174004244_1.jpg?1750520838",
-    "https://static.mercdn.net/item/detail/orig/photos/m40980107539_1.jpg?1724313069",
-    "https://static.mercdn.net/item/detail/orig/photos/m48554653940_1.jpg?1748833830",
-    "https://static.mercdn.net/item/detail/orig/photos/m54380931388_1.jpg?1743415726",
-    "https://static.mercdn.net/item/detail/orig/photos/m72310854705_1.jpg?1749858677",
-    "https://static.mercdn.net/item/detail/orig/photos/m37916245048_1.jpg?1746605742",
-    "https://static.mercdn.net/item/detail/orig/photos/m13353081345_1.jpg?1746430458",
-    "https://static.mercdn.net/item/detail/orig/photos/m91602011457_1.jpg?1750915455",
-    "https://static.mercdn.net/item/detail/orig/photos/m12525301933_1.jpg?1742560720",
-    "https://static.mercdn.net/item/detail/orig/photos/m45890664235_1.jpg?1750681098",
-    "https://static.mercdn.net/item/detail/orig/photos/m76174449115_1.jpg?1750891032",
-    "https://static.mercdn.net/item/detail/orig/photos/m19394384485_1.jpg?1750473862",
-    "https://static.mercdn.net/item/detail/orig/photos/m92991245040_1.jpg?1721580506",
-    "https://static.mercdn.net/item/detail/orig/photos/m37886971886_1.jpg?1747112207",
-    "https://static.mercdn.net/item/detail/orig/photos/m43410789903_1.jpg?1710687340"
-]'
+SAMPLE_URLS='["https://static.mercdn.net/item/detail/orig/photos/m47628860505_1.jpg?1740720390","https://static.mercdn.net/item/detail/orig/photos/m44609767648_1.jpg?1750939240","https://static.mercdn.net/item/detail/orig/photos/m88478925057_1.jpg?1662265812","https://static.mercdn.net/item/detail/orig/photos/m96001970769_1.jpg?1750953394","https://static.mercdn.net/item/detail/orig/photos/m48931146074_1.jpg?1740738532","https://static.mercdn.net/item/detail/orig/photos/m38469222607_1.jpg?1750821382","https://static.mercdn.net/item/detail/orig/photos/m88549534663_1.jpg?1750020537","https://static.mercdn.net/item/detail/orig/photos/m78444107154_1.jpg?1729065587","https://static.mercdn.net/item/detail/orig/photos/m99866594532_1.jpg?1697632923","https://static.mercdn.net/item/detail/orig/photos/m21519488926_1.jpg?1748441244","https://static.mercdn.net/item/detail/orig/photos/m30659710715_1.jpg?1704007113","https://static.mercdn.net/item/detail/orig/photos/m83639912369_1.jpg?1704719348","https://static.mercdn.net/item/detail/orig/photos/m96459104257_1.jpg?1750965433","https://static.mercdn.net/item/detail/orig/photos/m13795698389_1.jpg?1731027420","https://static.mercdn.net/item/detail/orig/photos/m62172900593_1.jpg?1734682836","https://static.mercdn.net/item/detail/orig/photos/m67174004244_1.jpg?1750520838","https://static.mercdn.net/item/detail/orig/photos/m40980107539_1.jpg?1724313069","https://static.mercdn.net/item/detail/orig/photos/m48554653940_1.jpg?1748833830","https://static.mercdn.net/item/detail/orig/photos/m54380931388_1.jpg?1743415726","https://static.mercdn.net/item/detail/orig/photos/m72310854705_1.jpg?1749858677","https://static.mercdn.net/item/detail/orig/photos/m37916245048_1.jpg?1746605742","https://static.mercdn.net/item/detail/orig/photos/m13353081345_1.jpg?1746430458","https://static.mercdn.net/item/detail/orig/photos/m91602011457_1.jpg?1750915455","https://static.mercdn.net/item/detail/orig/photos/m12525301933_1.jpg?1742560720","https://static.mercdn.net/item/detail/orig/photos/m45890664235_1.jpg?1750681098","https://static.mercdn.net/item/detail/orig/photos/m76174449115_1.jpg?1750891032","https://static.mercdn.net/item/detail/orig/photos/m19394384485_1.jpg?1750473862","https://static.mercdn.net/item/detail/orig/photos/m92991245040_1.jpg?1721580506","https://static.mercdn.net/item/detail/orig/photos/m37886971886_1.jpg?1747112207","https://static.mercdn.net/item/detail/orig/photos/m43410789903_1.jpg?1710687340"]'
 
 echo -e "${GREEN}🚀 VPS Configuration Performance Test${NC}"
 echo "================================================"
@@ -100,10 +69,6 @@ restart_container() {
     local -n config=$1
     echo -e "${YELLOW}Restarting container with memory settings...${NC}"
     
-    # First, update the manager.py to use new memory settings
-    # This would need to be done manually or via a different approach
-    # For now, we'll just restart with current settings
-    
     curl -X POST "$MANAGER_URL/deploy"
     
     # Wait for container to be ready
@@ -112,7 +77,7 @@ restart_container() {
     
     # Check health
     for i in {1..30}; do
-        if curl -s "$API_URL/api/v1/health" > /dev/null; then
+        if curl -s "$API_URL/health" > /dev/null 2>&1; then
             echo -e "${GREEN}✓ API is ready${NC}"
             return 0
         fi
@@ -131,30 +96,42 @@ run_test() {
     
     echo "  Testing batch size: $batch_size"
     
-    # Extract URLs for batch
-    local urls=$(echo "$SAMPLE_URLS" | jq -c ".[:$batch_size]")
+    # Build URL array for batch using Python
+    local urls=$(python3 -c "
+import json
+urls = $SAMPLE_URLS
+print(json.dumps(urls[:$batch_size]))
+")
     
     # Run test with timing
     local start_time=$(date +%s.%N)
     
-    local response=$(curl -s -X POST "$API_URL/api/v1/detect/batch" \
+    # Make the API call
+    local http_response=$(curl -s -X POST "$API_URL/detect/batch" \
         -H "Content-Type: application/json" \
         -d "{\"urls\": $urls}" \
-        -w "\n{\"http_code\": %{http_code}, \"time_total\": %{time_total}}" \
-        --max-time 300)
+        -o /tmp/response_body.json \
+        -w '{"http_code": %{http_code}, "time_total": %{time_total}}')
     
     local end_time=$(date +%s.%N)
     local duration=$(echo "$end_time - $start_time" | bc)
     
-    # Save result
-    echo "{
-        \"config\": \"${config[name]}\",
-        \"batch_size\": $batch_size,
-        \"duration\": $duration,
-        \"response\": $response
-    }" > "$result_file"
+    # Parse HTTP response
+    local http_code=$(echo "$http_response" | python3 -c "import json, sys; print(json.load(sys.stdin)['http_code'])")
+    
+    # Create proper JSON result file
+    cat > "$result_file" <<EOF
+{
+    "config": "${config[name]}",
+    "batch_size": $batch_size,
+    "duration": $duration,
+    "http_code": $http_code,
+    "response": $(cat /tmp/response_body.json 2>/dev/null || echo '{}')
+}
+EOF
     
     echo "    Duration: ${duration}s"
+    echo "    HTTP Code: ${http_code}"
     
     # Cool down
     sleep 5
@@ -171,8 +148,8 @@ monitor_memory() {
         # System memory
         local mem_used=$(free -m | grep Mem | awk '{print $3}')
         
-        # Docker memory
-        local docker_mem=$(docker stats logo-detection-api --no-stream --format "{{.MemUsage}}" | awk '{print $1}' | sed 's/[^0-9.]//g')
+        # Docker memory (extract just the number)
+        local docker_mem=$(docker stats logo-detection-api --no-stream --format "{{.MemUsage}}" | awk -F'/' '{print $1}' | sed 's/[^0-9.]//g')
         
         echo "$(date +%s),$mem_used,$docker_mem" >> "$log_file"
         sleep 2
@@ -240,7 +217,7 @@ echo "Configuration Performance Summary"
 echo "================================="
 echo ""
 
-# Parse all test results
+# Process each configuration
 for config in Conservative Balanced Performance; do
     echo "Configuration: $config"
     echo "-------------------"
@@ -248,22 +225,59 @@ for config in Conservative Balanced Performance; do
     # Find all result files for this config
     for file in /tmp/test_${config}_*.json; do
         if [ -f "$file" ]; then
-            batch_size=$(jq -r '.batch_size' "$file")
-            duration=$(jq -r '.duration' "$file")
-            urls_per_sec=$(echo "scale=2; $batch_size / $duration" | bc)
-            
-            echo "  Batch $batch_size: ${duration}s (${urls_per_sec} URLs/sec)"
+            # Parse JSON using Python for reliability
+            python3 -c "
+import json
+with open('$file', 'r') as f:
+    data = json.load(f)
+    batch_size = data.get('batch_size', 'N/A')
+    duration = data.get('duration', 'N/A')
+    http_code = data.get('http_code', 'N/A')
+    if isinstance(duration, (int, float)) and duration > 0:
+        urls_per_sec = round(batch_size / duration, 2)
+    else:
+        urls_per_sec = 'N/A'
+    print(f'  Batch {batch_size}: {duration}s ({urls_per_sec} URLs/sec) - HTTP {http_code}')
+"
         fi
     done
     
     # Memory stats
     if [ -f "/tmp/memory_${config}.log" ]; then
-        avg_docker_mem=$(awk -F',' 'NR>1 {sum+=$3; count++} END {print sum/count}' "/tmp/memory_${config}.log")
+        avg_docker_mem=$(awk -F',' 'NR>1 && $3 ~ /^[0-9.]+$/ {sum+=$3; count++} END {if(count>0) printf "%.1f", sum/count; else print "N/A"}' "/tmp/memory_${config}.log")
         echo "  Avg Docker Memory: ${avg_docker_mem} MB"
     fi
     
     echo ""
 done
+
+# Show successful tests only
+echo "=== Successful Tests Only ==="
+echo ""
+python3 -c "
+import json
+import glob
+
+results = []
+for file in glob.glob('/tmp/test_*.json'):
+    with open(file, 'r') as f:
+        data = json.load(f)
+        if data.get('http_code') == 200:
+            results.append({
+                'config': data['config'],
+                'batch': data['batch_size'],
+                'duration': round(data['duration'], 2),
+                'speed': round(data['batch_size'] / data['duration'], 2)
+            })
+
+# Sort by speed
+results.sort(key=lambda x: x['speed'], reverse=True)
+
+print('Config         | Batch | Duration | Speed (URLs/sec)')
+print('---------------|-------|----------|----------------')
+for r in results:
+    print(f\"{r['config']:14} | {r['batch']:5} | {r['duration']:8.2f}s | {r['speed']:15.2f}\")
+"
 SUMMARY_SCRIPT
 
 chmod +x /tmp/analyze_config_results.sh
