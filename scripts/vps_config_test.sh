@@ -106,25 +106,38 @@ print(json.dumps(urls[:$batch_size]))
     # Run test with timing
     local start_time=$(date +%s.%N)
     
-    # Build request body for /api/v1/process/batch
-    local images_array=""
-    for ((i=0; i<batch_size; i++)); do
-        if [ $i -gt 0 ]; then
-            images_array+=","
-        fi
-        images_array+="{\"id\": \"img$i\", \"image_url\": $(echo "$urls" | python3 -c "import json, sys; urls=json.load(sys.stdin); print(json.dumps(urls[$i]))")}"
-    done
+    # Build request body for /api/v1/process/batch using Python
+    local request_body=$(python3 -c "
+import json
+import time
+
+urls = $urls
+batch_size = $batch_size
+config_name = '${config[name]}'
+
+images = []
+for i in range(min(batch_size, len(urls))):
+    images.append({
+        'id': f'img{i}',
+        'image_url': urls[i]
+    })
+
+request = {
+    'batch_id': f'test-{config_name}-{batch_size}-{int(time.time())}',
+    'images': images,
+    'options': {
+        'confidence_threshold': 0.5,
+        'max_detections': 10,
+        'enable_brand_normalization': True,
+        'enable_category_classification': True
+    }
+}
+
+print(json.dumps(request))
+")
     
-    local request_body="{
-        \"batch_id\": \"test-${config[name]}-${batch_size}-$(date +%s)\",
-        \"images\": [$images_array],
-        \"options\": {
-            \"confidence_threshold\": 0.5,
-            \"max_detections\": 10,
-            \"enable_brand_normalization\": true,
-            \"enable_category_classification\": true
-        }
-    }"
+    # Debug: Show request body (first 200 chars)
+    echo "    Request preview: ${request_body:0:200}..."
     
     # Make the API call
     local http_response=$(curl -s -X POST "$API_URL/api/v1/process/batch" \
