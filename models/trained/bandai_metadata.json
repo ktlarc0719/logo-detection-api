@@ -1,0 +1,10 @@
+{
+  "model_name": "bandai",
+  "base_model": "yolov8n.pt",
+  "epochs": 30,
+  "batch_size": 16,
+  "learning_rate": 0.0,
+  "training_time": 890.607887,
+  "final_mAP": 0.0,
+  "created": "2025-06-27T18:32:52.672668"
+}

@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(python3:*)",
+      "Bash(ls:*)",
+      "Bash(python test_robust_dataset_generation.py:*)",
+      "Bash(pip install:*)",
+      "Bash(curl:*)",
+      "Bash(grep:*)",
+      "Bash(awk:*)",
+      "Bash(mv:*)",
+      "Bash(apt list:*)",
+      "Bash(source:*)",
+      "Bash(python:*)",
+      "Bash(find:*)",
+      "Bash(chmod:*)",
+      "Bash(cat:*)",
+      "Bash(./train_from_labelimg.sh:*)",
+      "Bash(true)",
+      "Bash(pgrep:*)",
+      "Bash(kill:*)",
+      "Bash(pip3 install:*)",
+      "Bash(apt-get:*)",
+      "Bash(apt-get install:*)"
+    ],
+    "deny": []
+  }
+}

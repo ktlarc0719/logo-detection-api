@@ -1,0 +1,40 @@
+# Core FastAPI dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+pydantic-settings>=2.0.0
+python-multipart>=0.0.6
+
+# YOLO and Deep Learning
+ultralytics>=8.0.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Image processing
+opencv-python>=4.8.0
+pillow>=10.0.0
+numpy>=1.24.0
+
+# HTTP client for async image downloads
+aiohttp>=3.9.0
+
+# Configuration and environment
+python-dotenv>=1.0.0
+
+# System monitoring and metrics
+psutil>=5.9.0
+tabulate>=0.8.0
+
+# Development and testing (optional, can be moved to requirements-dev.txt)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.25.0
+
+# Logging and debugging
+colorlog>=6.7.0
+
+# Optional: Production server (alternative to uvicorn)
+gunicorn>=21.2.0
+
+# UI dependencies
+streamlit>=1.28.0
