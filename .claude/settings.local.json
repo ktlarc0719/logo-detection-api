@@ -23,7 +23,8 @@
       "Bash(kill:*)",
       "Bash(pip3 install:*)",
       "Bash(apt-get:*)",
-      "Bash(apt-get install:*)"
+      "Bash(apt-get install:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }
