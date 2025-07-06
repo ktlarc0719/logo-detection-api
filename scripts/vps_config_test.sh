@@ -92,7 +92,7 @@ restart_container() {
 run_test() {
     local -n config=$1
     local batch_size=$2
-    local result_file="/tmp/test_${config[name]}_${batch_size}_$(date +%Y%m%d_%H%M%S).json"
+    local result_file="/tmp/test_${config[name]}_${batch_size}.json"
     
     echo "  Testing batch size: $batch_size"
     
@@ -173,10 +173,10 @@ EOF
 # Function to monitor memory during test
 monitor_memory() {
     local config_name=$1
-    local log_file="/tmp/memory_${config_name}_$(date +%Y%m%d_%H%M%S).log"
+    local log_file="/tmp/memory_${config_name}.log"
     
-    # Don't write header - just start with data
-    # echo "timestamp,system_used_mb,docker_mem_mb" > "$log_file"
+    # Clear old file and write header
+    echo "timestamp,system_used_mb,docker_mem_mb" > "$log_file"
     
     while true; do
         # System memory
@@ -194,8 +194,12 @@ monitor_memory() {
 echo -e "${YELLOW}Starting configuration tests...${NC}"
 echo ""
 
-# Create results directory
-mkdir -p /tmp/perf_results
+# Clean up old test files
+echo -e "${YELLOW}Cleaning up old test files...${NC}"
+rm -f /tmp/test_*.json
+rm -f /tmp/memory_*.log
+echo -e "${GREEN}✓ Old files removed${NC}"
+echo ""
 
 # Test each configuration
 for config_var in CONFIG_1 CONFIG_2 CONFIG_3; do
@@ -276,11 +280,9 @@ with open('$file', 'r') as f:
         fi
     done
     
-    # Memory stats - look for files with timestamp
-    mem_file=$(ls -t /tmp/memory_${config}_*.log 2>/dev/null | head -1)
-    if [ -f "$mem_file" ]; then
-        # No header in memory files, process all lines
-        avg_docker_mem=$(awk -F',' '$3 ~ /^[0-9.]+$/ {sum+=$3; count++} END {if(count>0) printf "%.1f", sum/count; else print "N/A"}' "$mem_file")
+    # Memory stats
+    if [ -f "/tmp/memory_${config}.log" ]; then
+        avg_docker_mem=$(awk -F',' 'NR>1 && $3 ~ /^[0-9.]+$/ {sum+=$3; count++} END {if(count>0) printf "%.1f", sum/count; else print "N/A"}' "/tmp/memory_${config}.log")
         echo "  Avg Docker Memory: ${avg_docker_mem} MB"
     fi
     
