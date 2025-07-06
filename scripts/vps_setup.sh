@@ -37,6 +37,7 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
     python3 \
     python3-venv \
     python3-pip \
+    git \
     -o Dpkg::Options::="--force-confdef" \
     -o Dpkg::Options::="--force-confold"
 
@@ -122,6 +123,8 @@ app = Flask(__name__)
 DOCKER_IMAGE = "kentatsujikawadev/logo-detection-api:latest"
 CONTAINER_NAME = "logo-detection-api"
 API_PORT = 8000
+GIT_REPO_URL = "https://github.com/ktlarc0719/logo-detection-api.git"
+GIT_REPO_DIR = "/opt/logo-detection/repo"
 
 def load_env():
     """Load environment variables from .env file"""
@@ -160,6 +163,14 @@ def index():
     health = run_command(f"curl -s -o /dev/null -w '%{{http_code}}' http://localhost:{API_PORT}/api/v1/health || echo '000'")
     api_healthy = health["stdout"].strip() == "200"
     
+    # Git status
+    git_status = {}
+    if os.path.exists(GIT_REPO_DIR):
+        git_result = run_command(f"cd {GIT_REPO_DIR} && git log -1 --oneline")
+        git_status["last_commit"] = git_result["stdout"].strip()
+        git_branch = run_command(f"cd {GIT_REPO_DIR} && git branch --show-current")
+        git_status["branch"] = git_branch["stdout"].strip()
+    
     return jsonify({
         "timestamp": datetime.now().isoformat(),
         "container": {
@@ -167,7 +178,8 @@ def index():
             "status": ps_result["stdout"].strip(),
             "api_healthy": api_healthy
         },
-        "configuration": env_vars
+        "configuration": env_vars,
+        "git": git_status
     }), 200
 
 @app.route("/deploy", methods=["POST"])
@@ -191,6 +203,8 @@ def deploy():
         "docker", "run", "-d",
         "--name", CONTAINER_NAME,
         "--restart=always",
+        "--memory", "1.5g",
+        "--memory-reservation", "1g",
         "-p", f"{API_PORT}:8000",
         "-v", "/opt/logo-detection/logs:/app/logs",
         "-v", "/opt/logo-detection/data:/app/data"
@@ -248,6 +262,65 @@ def config():
     return jsonify({
         "message": "Configuration updated. Run /deploy to apply.",
         "config": env_vars
+    }), 200
+
+@app.route("/git/pull", methods=["POST"])
+def git_pull():
+    """Pull latest code from GitHub and optionally rebuild/restart"""
+    results = {}
+    
+    # Check if repo exists, clone if not
+    if not os.path.exists(GIT_REPO_DIR):
+        print(f"Cloning repository to {GIT_REPO_DIR}...")
+        os.makedirs(os.path.dirname(GIT_REPO_DIR), exist_ok=True)
+        results["clone"] = run_command(f"git clone {GIT_REPO_URL} {GIT_REPO_DIR}")
+    else:
+        # Pull latest changes
+        print("Pulling latest changes from GitHub...")
+        results["pull"] = run_command(f"cd {GIT_REPO_DIR} && git pull origin main")
+    
+    # Get current commit info
+    commit_info = run_command(f"cd {GIT_REPO_DIR} && git log -1 --pretty=format:'%h - %s (%cr)'")
+    results["current_commit"] = commit_info["stdout"]
+    
+    # Check if rebuild is requested (default: True)
+    rebuild = request.json.get("rebuild", True) if request.json else True
+    if rebuild:
+        print("Rebuilding Docker image...")
+        results["build"] = run_command(f"cd {GIT_REPO_DIR} && docker build -t {DOCKER_IMAGE} .")
+        
+        # If build successful, restart container
+        if results["build"]["success"]:
+            deploy_result = deploy()
+            results["deploy"] = deploy_result[0].json
+    
+    return jsonify({
+        "success": True,
+        "message": "Git pull completed",
+        "results": results
+    }), 200
+
+@app.route("/git/status", methods=["GET"])
+def git_status():
+    """Get current git status"""
+    if not os.path.exists(GIT_REPO_DIR):
+        return jsonify({
+            "error": "Repository not found",
+            "message": f"No repository at {GIT_REPO_DIR}. Use /git/pull to clone."
+        }), 404
+    
+    results = {}
+    results["status"] = run_command(f"cd {GIT_REPO_DIR} && git status --short")
+    results["branch"] = run_command(f"cd {GIT_REPO_DIR} && git branch --show-current")
+    results["last_commit"] = run_command(f"cd {GIT_REPO_DIR} && git log -1 --pretty=format:'%h - %s (%cr) <%an>'")
+    results["remote_url"] = run_command(f"cd {GIT_REPO_DIR} && git config --get remote.origin.url")
+    
+    return jsonify({
+        "repository": GIT_REPO_DIR,
+        "branch": results["branch"]["stdout"].strip(),
+        "last_commit": results["last_commit"]["stdout"].strip(),
+        "remote_url": results["remote_url"]["stdout"].strip(),
+        "changes": results["status"]["stdout"].strip()
     }), 200
 
 if __name__ == "__main__":
@@ -381,8 +454,19 @@ echo "  curl -X POST http://localhost:8080/config \\"
 echo "    -H 'Content-Type: application/json' \\"
 echo "    -d '{\"MAX_BATCH_SIZE\":\"50\"}'"
 echo ""
-echo "  # Deploy latest version"
+echo "  # Deploy latest version (from Docker Hub)"
 echo "  curl -X POST http://localhost:8080/deploy"
+echo ""
+echo "  # Git status"
+echo "  curl http://localhost:8080/git/status"
+echo ""
+echo "  # Pull code + rebuild + deploy (default)"
+echo "  curl -X POST http://localhost:8080/git/pull"
+echo ""
+echo "  # Pull code only (no rebuild)"
+echo "  curl -X POST http://localhost:8080/git/pull \\"
+echo "    -H 'Content-Type: application/json' \\"
+echo "    -d '{\"rebuild\": false}'"
 echo ""
 
 # 18. 再起動が必要かチェック

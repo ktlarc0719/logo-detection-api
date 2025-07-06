@@ -11,21 +11,25 @@
 新しいVPSで以下のコマンドを実行するだけでデプロイが完了します：
 
 ```bash
-wget https://raw.githubusercontent.com/kentatsujikawadev/logo-detection-api/main/scripts/vps_setup.sh
+wget https://raw.githubusercontent.com/ktlarc0719/logo-detection-api/main/scripts/vps_setup.sh
 chmod +x vps_setup.sh
 sudo ./vps_setup.sh
 ```
 
 ## セットアップ内容
 
-1. **Dockerのインストール**
+1. **必要なパッケージのインストール**
+   - Docker
+   - Git
+   - Python3 & Flask（管理API用）
+
 2. **ディレクトリ構造の作成**
    ```
-   /opt/logo-detection-api/
-   ├── models/      # YOLOモデル
+   /opt/logo-detection/
    ├── logs/        # ログファイル
    ├── data/        # データファイル
-   └── scripts/     # 管理スクリプト
+   ├── repo/        # GitHubリポジトリ（Git機能使用時）
+   └── .env         # 環境設定
    ```
 
 3. **管理APIサーバー** (ポート8080)
@@ -33,6 +37,9 @@ sudo ./vps_setup.sh
    - Dockerイメージの更新と再起動
    - ログの確認
    - 設定の更新
+   - **Git機能（NEW）**
+     - GitHubからコード取得
+     - ローカルビルド＆デプロイ
 
 4. **環境変数設定** (2コア2GB向け最適化)
    ```
@@ -56,9 +63,27 @@ sudo ./vps_setup.sh
 curl http://localhost:8080/
 ```
 
-#### 最新版に更新
+#### 最新版に更新（Docker Hub経由）
 ```bash
-curl -X POST http://localhost:8080/pull-restart
+curl -X POST http://localhost:8080/deploy
+```
+
+#### Git機能（NEW）
+
+##### Gitリポジトリの状態確認
+```bash
+curl http://localhost:8080/git/status
+```
+
+##### GitHubから最新コードを取得
+```bash
+# コード取得 + Dockerビルド + デプロイ（デフォルト）
+curl -X POST http://localhost:8080/git/pull
+
+# コード取得のみ（ビルドしない）
+curl -X POST http://localhost:8080/git/pull \
+  -H 'Content-Type: application/json' \
+  -d '{"rebuild": false}'
 ```
 
 #### ログ確認
@@ -87,7 +112,7 @@ curl -X POST http://localhost:8080/config \
 
 設定更新後はコンテナの再起動が必要です：
 ```bash
-curl -X POST http://localhost:8080/pull-restart
+curl -X POST http://localhost:8080/deploy
 ```
 
 ## パフォーマンスチューニング
@@ -170,6 +195,36 @@ sudo ufw enable
 # 特定のIPからのみアクセスを許可
 sudo ufw allow from YOUR_IP to any port 8080
 ```
+
+## 開発ワークフロー
+
+### Docker Hub経由（推奨）
+1. ローカルで開発
+2. Dockerイメージをビルド＆プッシュ
+   ```bash
+   ./scripts/docker-build.sh
+   ./scripts/docker-push.sh
+   ```
+3. VPSでデプロイ
+   ```bash
+   curl -X POST http://your-vps-ip:8080/deploy
+   ```
+
+### GitHub経由（ソースからビルド）
+1. ローカルで開発
+2. GitHubにプッシュ
+   ```bash
+   make git  # または git push origin main
+   ```
+3. VPSでビルド＆デプロイ
+   ```bash
+   # デフォルトで rebuild: true
+   curl -X POST http://your-vps-ip:8080/git/pull
+   ```
+
+### どちらを使うべきか？
+- **Docker Hub経由**: ビルド済みイメージを使うため高速。本番環境向け。
+- **GitHub経由**: VPS上でビルドするため時間がかかるが、最新のコードを確実に反映。開発環境向け。
 
 ## バックアップ
 

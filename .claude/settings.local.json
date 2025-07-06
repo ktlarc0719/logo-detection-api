@@ -25,7 +25,9 @@
       "Bash(apt-get:*)",
       "Bash(apt-get install:*)",
       "Bash(git push:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(docker buildx:*)",
+      "Bash(wget:*)"
     ],
     "deny": []
   }
