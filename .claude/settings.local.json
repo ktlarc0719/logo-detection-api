@@ -27,7 +27,8 @@
       "Bash(git push:*)",
       "Bash(git branch:*)",
       "Bash(docker buildx:*)",
-      "Bash(wget:*)"
+      "Bash(wget:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

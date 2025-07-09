@@ -86,10 +86,14 @@ cat <<'EOF' | sudo tee /opt/logo-detection/.env > /dev/null
 # Logo Detection API Configuration
 # Optimized for 2-core 2GB VPS
 
-# Performance Settings
+# Performance Settings (Optimized for 2GB VPS)
 MAX_CONCURRENT_DETECTIONS=2
-MAX_CONCURRENT_DOWNLOADS=15
+MAX_CONCURRENT_DOWNLOADS=30
 MAX_BATCH_SIZE=30
+
+# Memory Settings
+MEMORY_LIMIT=1g
+MEMORY_RESERVATION=512m
 
 # Environment
 ENVIRONMENT=production
@@ -203,8 +207,8 @@ def deploy():
         "docker", "run", "-d",
         "--name", CONTAINER_NAME,
         "--restart=always",
-        "--memory", "1.5g",
-        "--memory-reservation", "1g",
+        "--memory", env_vars.get("MEMORY_LIMIT", "1g"),
+        "--memory-reservation", env_vars.get("MEMORY_RESERVATION", "512m"),
         "-p", f"{API_PORT}:8000",
         "-v", "/opt/logo-detection/logs:/app/logs",
         "-v", "/opt/logo-detection/data:/app/data"
@@ -264,10 +268,21 @@ def config():
         "config": env_vars
     }), 200
 
-@app.route("/git/pull", methods=["POST"])
+@app.route("/git/pull", methods=["POST", "GET"])
 def git_pull():
     """Pull latest code from GitHub and optionally rebuild/restart"""
     results = {}
+    
+    # For GET requests, just pull without rebuild
+    if request.method == "GET":
+        rebuild = False
+    else:
+        # For POST requests, try to get JSON data
+        try:
+            data = request.get_json(silent=True) or {}
+        except:
+            data = {}
+        rebuild = data.get("rebuild", True)
     
     # Check if repo exists, clone if not
     if not os.path.exists(GIT_REPO_DIR):
@@ -282,9 +297,6 @@ def git_pull():
     # Get current commit info
     commit_info = run_command(f"cd {GIT_REPO_DIR} && git log -1 --pretty=format:'%h - %s (%cr)'")
     results["current_commit"] = commit_info["stdout"]
-    
-    # Check if rebuild is requested (default: True)
-    rebuild = request.json.get("rebuild", True) if request.json else True
     if rebuild:
         print("Rebuilding Docker image...")
         results["build"] = run_command(f"cd {GIT_REPO_DIR} && docker build -t {DOCKER_IMAGE} .")
