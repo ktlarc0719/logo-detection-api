@@ -18,8 +18,8 @@ from src.utils.metrics import performance_monitor
 from src.models.schemas import ErrorResponse, ValidationErrorResponse
 
 # Import routers
-from src.api.endpoints import batch_detection, single_detection, health, model_management, training, logo_management, download_images, system_management, url_batch_detection
-from api.dataset_splitter import router as dataset_splitter_router
+from src.api.endpoints import health, model_management, training, logo_management, download_images, system_management, inspection_v2, ml_system
+from src.api.endpoints.dataset_management import router as dataset_management_router
 
 # Setup logging
 logger = setup_logger()
@@ -47,6 +47,12 @@ async def lifespan(app: FastAPI):
         else:
             logger.info("Training pipeline disabled")
         
+        # Start inspection queue
+        from src.core.inspection_queue import get_inspection_queue
+        inspection_queue = get_inspection_queue()
+        await inspection_queue.start()
+        logger.info("Inspection queue started")
+        
         # Start background monitoring task
         if settings.enable_metrics:
             monitoring_task = asyncio.create_task(performance_monitor())
@@ -64,6 +70,10 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down Logo Detection API...")
+    
+    # Stop inspection queue
+    await inspection_queue.stop()
+    logger.info("Inspection queue stopped")
     
     # Cancel monitoring task
     if monitoring_task and not monitoring_task.done():
@@ -99,6 +109,13 @@ def create_app() -> FastAPI:
     
     # Include routers
     setup_routers(app)
+    
+    # Mount static files
+    import os
+    if os.path.exists("static"):
+        app.mount("/static", StaticFiles(directory="static"), name="static")
+    if os.path.exists("templates"):
+        app.mount("/assets", StaticFiles(directory="templates"), name="templates")
     
     return app
 
@@ -217,18 +234,7 @@ def setup_routers(app: FastAPI) -> None:
         tags=["Health & Monitoring"]
     )
     
-    # Processing endpoints
-    app.include_router(
-        batch_detection.router,
-        prefix="/api/v1/process",
-        tags=["Batch Processing"]
-    )
     
-    app.include_router(
-        single_detection.router,
-        prefix="/api/v1/process",
-        tags=["Single Image Processing"]
-    )
     
     # Model and brand management endpoints
     app.include_router(
@@ -258,9 +264,9 @@ def setup_routers(app: FastAPI) -> None:
         tags=["Image Download"]
     )
     
-    # Dataset splitter endpoint
+    # Dataset management endpoints
     app.include_router(
-        dataset_splitter_router,
+        dataset_management_router,
         prefix="/api/v1",
         tags=["Dataset Management"]
     )
@@ -272,30 +278,45 @@ def setup_routers(app: FastAPI) -> None:
         tags=["System Management"]
     )
     
-    # URL batch processing endpoints
+    
+    # Inspection endpoints
     app.include_router(
-        url_batch_detection.router,
+        inspection_v2.router,
         prefix="/api/v1",
-        tags=["URL Batch Processing"]
+        tags=["Inspection"]
+    )
+    
+    # ML System endpoints
+    app.include_router(
+        ml_system.router,
+        prefix="/api/v1/ml",
+        tags=["ML System"]
     )
     
     # Serve static files and UI
     app.mount("/static", StaticFiles(directory="static"), name="static")
     
     # UI endpoints
-    @app.get("/ui", tags=["UI"])
-    async def serve_ui():
-        """Serve the detection UI."""
-        return FileResponse('static/index.html')
+    @app.get("/", tags=["UI"])
+    async def serve_dashboard():
+        """Serve the main dashboard."""
+        return FileResponse('templates/dashboard.html')
     
-    @app.get("/ui/batch", tags=["UI"])
-    async def serve_batch_ui():
-        """Serve the batch processing UI."""
-        return FileResponse('static/batch.html')
     
-    # Root endpoint
-    @app.get("/", tags=["Root"])
-    async def root():
+    
+    @app.get("/ui/inspection", tags=["UI"])
+    async def serve_inspection_ui():
+        """Serve the inspection management UI."""
+        return FileResponse('templates/inspection_ui.html')
+    
+    @app.get("/ui/ml", tags=["UI"])
+    async def serve_ml_system_ui():
+        """Serve the ML system UI."""
+        return FileResponse('templates/ml_system_ui.html')
+    
+    # API Info endpoint
+    @app.get("/api", tags=["API Info"])
+    async def api_info():
         """Root endpoint with API information."""
         return {
             "name": "Logo Detection API",
@@ -315,8 +336,6 @@ def setup_routers(app: FastAPI) -> None:
             "endpoints": {
                 "health": "/api/v1/health",
                 "metrics": "/api/v1/metrics",
-                "batch_processing": "/api/v1/process/batch",
-                "single_processing": "/api/v1/process/single",
                 "models": "/api/v1/models",
                 "model_switch": "/api/v1/models/switch",
                 "brands": "/api/v1/brands",
@@ -326,9 +345,19 @@ def setup_routers(app: FastAPI) -> None:
                 "datasets": "/api/v1/training/datasets",
                 "logo_classes": "/api/v1/logos/classes",
                 "logo_upload": "/api/v1/logos/upload",
+                "inspection_start": "/api/v1/inspection/start",
+                "inspection_status": "/api/v1/inspection/status",
+                "ml_system_status": "/api/v1/ml/status",
+                "ml_dataset_validate": "/api/v1/ml/dataset/validate",
+                "ml_training_start": "/api/v1/ml/training/start",
+                "ml_model_validate": "/api/v1/ml/model/validate",
+                "ml_model_visualize": "/api/v1/ml/model/visualize",
                 "documentation": "/docs",
+                "dashboard": "/",
                 "ui": "/ui",
-                "batch_ui": "/ui/batch"
+                "batch_ui": "/ui/batch",
+                "inspection_ui": "/ui/inspection",
+                "ml_ui": "/ui/ml"
             },
             "phase": "3.0 - Training Pipeline Implementation"
         }

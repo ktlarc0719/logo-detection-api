@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>画像検査管理UI - Updated</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .progress-bar { transition: width 0.3s ease; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <!-- タブメニュー -->
+        <div class="bg-white rounded-lg shadow-md mb-6">
+            <div class="flex border-b">
+                <button class="tab-button px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600" 
+                        onclick="switchTab('new', this)">
+                    <i class="fas fa-plus-circle"></i> 新規検査
+                </button>
+                <button class="tab-button px-6 py-3 font-semibold text-gray-600 hover:text-blue-600" 
+                        onclick="switchTab('status', this)">
+                    <i class="fas fa-tasks"></i> 実行状況
+                </button>
+                <button class="tab-button px-6 py-3 font-semibold text-gray-600 hover:text-blue-600" 
+                        onclick="switchTab('stats', this)">
+                    <i class="fas fa-chart-bar"></i> 統計情報
+                </button>
+            </div>
+        </div>
+
+        <!-- 新規検査タブ -->
+        <div id="new-tab" class="tab-content active">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-6">新規検査の開始</h2>
+                
+                <form id="inspectionForm" class="space-y-6">
+                    <!-- 実行モード選択 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">検査モード</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="radio" name="inspection_mode" value="seller" checked 
+                                       onchange="toggleInspectionMode()" class="mr-2">
+                                <span>セラーID指定検査</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="inspection_mode" value="user" 
+                                       onchange="toggleInspectionMode()" class="mr-2">
+                                <span>ユーザーID指定検査 <span class="text-gray-500 text-xs">(TBD)</span></span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="inspection_mode" value="all" 
+                                       onchange="toggleInspectionMode()" class="mr-2">
+                                <span>全数検査 <span class="text-gray-500 text-xs">(TBD)</span></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- モデル選択 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">検査モデル</label>
+                        <select id="modelSelect" name="model_name" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <option value="">読み込み中...</option>
+                        </select>
+                    </div>
+
+                    <!-- デバイスモード選択 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">デバイスモード</label>
+                        <div class="flex items-center space-x-6">
+                            <div class="flex space-x-4">
+                                <label class="flex items-center">
+                                    <input type="radio" name="device_mode" value="cpu" checked class="mr-2">
+                                    <span>CPU モード</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="device_mode" value="gpu" class="mr-2">
+                                    <span>GPU モード</span>
+                                </label>
+                            </div>
+                            <!-- GPU状態表示 -->
+                            <div id="gpuStatusInline" class="flex items-center ml-auto">
+                                <span class="text-sm text-gray-600 mr-2">GPU状態:</span>
+                                <span id="gpuInfo" class="text-sm">読み込み中...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- GPU負荷率 -->
+                    <div id="gpuLoadSection">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            GPU負荷率: <span id="gpuLoadValue">80</span>%
+                        </label>
+                        <input type="range" name="gpu_load_rate" min="0" max="100" value="80" 
+                               class="w-full" oninput="updateGPULoad(this.value)">
+                    </div>
+
+                    <!-- モード別パラメータエリア -->
+                    <!-- セラーID指定検査用フィールド -->
+                    <div id="sellerFields" class="mode-fields">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                セラーID <span class="text-red-500">*</span>
+                                <span class="text-xs text-gray-500 ml-2">(例: A3OBH97MEO1982)</span>
+                            </label>
+                            <input type="text" name="seller_id" placeholder="A3OBH97MEO1982" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <p class="text-xs text-gray-500 mt-1">
+                                画像パス: /mnt/c/03_amazon_images/{セラーID}/
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- ユーザーID指定検査用フィールド -->
+                    <div id="userFields" class="mode-fields hidden">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                ユーザーID <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="user_id" placeholder="USER_0001" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        <div class="bg-yellow-50 border border-yellow-200 rounded p-3 mt-3">
+                            <p class="text-sm text-yellow-800">
+                                <i class="fas fa-info-circle"></i> この機能は現在開発中です。
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 全数検査用フィールド -->
+                    <div id="allFields" class="mode-fields hidden">
+                        <div class="bg-yellow-50 border border-yellow-200 rounded p-3">
+                            <p class="text-sm text-yellow-800">
+                                <i class="fas fa-info-circle"></i> 全数検査機能は現在開発中です。
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 共通パラメータセクション -->
+                    <div class="border-t pt-4 mt-4">
+                        <h3 class="text-lg font-semibold mb-4">共通パラメータ</h3>
+                        
+                        <!-- 処理上限数 -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                処理上限数
+                            </label>
+                            <div class="flex items-center space-x-3">
+                                <input type="number" name="max_items" min="1" max="10000" placeholder="1000" 
+                                       id="maxItemsInput" class="flex-1 px-3 py-2 border border-gray-300 rounded-md">
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="process_all" id="processAllCheck" class="mr-2" 
+                                           onchange="toggleProcessAll()">
+                                    <span>全件処理</span>
+                                </label>
+                            </div>
+                        </div>
+
+                    <!-- 検査パラメータ -->
+                    <div class="grid grid-cols-2 gap-4 mb-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">信頼度閾値</label>
+                            <input type="number" name="confidence_threshold" min="0.1" max="1.0" 
+                                   step="0.1" value="0.5" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">最大検出数</label>
+                            <input type="number" name="max_detections" min="1" max="100" value="10" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <!-- 実行ボタン -->
+                    <button type="submit" 
+                            class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 transition duration-200">
+                        <i class="fas fa-play"></i> 検査を開始
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 実行状況タブ -->
+        <div id="status-tab" class="tab-content">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-6">実行状況</h2>
+                <div id="batchList" class="space-y-4">
+                    <!-- 動的に生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 統計情報タブ -->
+        <div id="stats-tab" class="tab-content">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-6">統計情報</h2>
+                <div id="statistics" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- 動的に生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Base URL
+        const API_BASE_URL = window.location.origin + '/api/v1';
+        console.log('API Base URL:', API_BASE_URL);
+
+        // タブ切り替え
+        function switchTab(tabName, clickedButton) {
+            console.log('switchTab called with:', tabName);
+            
+            // 全てのタブコンテンツを非表示
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 全てのタブボタンのスタイルをリセット
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+                button.classList.add('text-gray-600');
+            });
+            
+            // 選択されたタブを表示
+            const targetTab = document.getElementById(`${tabName}-tab`);
+            console.log('Adding active class to:', tabName + '-tab');
+            targetTab.classList.add('active');
+            console.log('Tab classes after adding active:', targetTab.className);
+            console.log('Computed display after adding active:', window.getComputedStyle(targetTab).display);
+            
+            // クリックされたボタンまたは対応するボタンをアクティブに
+            if (clickedButton) {
+                clickedButton.classList.remove('text-gray-600');
+                clickedButton.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+            } else {
+                // ボタンが渡されていない場合は、タブ名から対応するボタンを探す
+                const tabIndex = tabName === 'new' ? 0 : tabName === 'status' ? 1 : 2;
+                const buttons = document.querySelectorAll('.tab-button');
+                if (buttons[tabIndex]) {
+                    buttons[tabIndex].classList.remove('text-gray-600');
+                    buttons[tabIndex].classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+                }
+            }
+            
+            // タブに応じた処理
+            if (tabName === 'status') {
+                console.log('Switching to status tab, loading batch statuses...');
+                loadBatchStatuses();
+            } else if (tabName === 'stats') {
+                loadStatistics();
+            }
+        }
+
+        // 検査モードの切り替え
+        function toggleInspectionMode() {
+            const mode = document.querySelector('input[name="inspection_mode"]:checked').value;
+            
+            // 全てのモードフィールドを非表示
+            document.querySelectorAll('.mode-fields').forEach(field => {
+                field.classList.add('hidden');
+            });
+            
+            // 選択したモードのフィールドを表示
+            switch(mode) {
+                case 'seller':
+                    document.getElementById('sellerFields').classList.remove('hidden');
+                    break;
+                case 'user':
+                    document.getElementById('userFields').classList.remove('hidden');
+                    break;
+                case 'all':
+                    document.getElementById('allFields').classList.remove('hidden');
+                    break;
+            }
+        }
+        
+        // 全件処理チェックボックスの切り替え
+        function toggleProcessAll() {
+            const checkbox = document.getElementById('processAllCheck');
+            const input = document.getElementById('maxItemsInput');
+            
+            if (checkbox.checked) {
+                input.disabled = true;
+                input.value = '';
+                input.placeholder = '全件処理';
+            } else {
+                input.disabled = false;
+                input.placeholder = '1000';
+            }
+        }
+
+        // GPU負荷率の更新
+        function updateGPULoad(value) {
+            document.getElementById('gpuLoadValue').textContent = value;
+        }
+
+        // モデル一覧の読み込み
+        async function loadModels() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/models`);
+                const data = await response.json();
+                
+                const select = document.getElementById('modelSelect');
+                select.innerHTML = data.models.map(model => 
+                    `<option value="${model.name}" ${model.is_current ? 'selected' : ''}>
+                        ${model.name} ${model.loaded ? '(読み込み済み)' : ''}
+                    </option>`
+                ).join('');
+            } catch (error) {
+                console.error('Failed to load models:', error);
+            }
+        }
+
+        // フォームの送信
+        document.getElementById('inspectionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const inspectionMode = formData.get('inspection_mode');
+            
+            // 未実装モードのチェック
+            if (inspectionMode === 'user' || inspectionMode === 'all') {
+                alert('この検査モードは現在開発中です。');
+                return;
+            }
+            
+            const data = {
+                mode: 'individual',  // API互換性のため
+                model_name: formData.get('model_name'),
+                device_mode: formData.get('device_mode'),
+                gpu_load_rate: parseInt(formData.get('gpu_load_rate')) / 100,
+                confidence_threshold: parseFloat(formData.get('confidence_threshold')),
+                max_detections: parseInt(formData.get('max_detections'))
+            };
+            
+            // モード別のパラメータ設定
+            if (inspectionMode === 'seller') {
+                const sellerId = formData.get('seller_id');
+                if (!sellerId) {
+                    alert('セラーIDを入力してください');
+                    return;
+                }
+                data.seller_id = sellerId;
+            }
+            
+            // 全件処理フラグ
+            data.process_all = formData.get('process_all') === 'on';
+            
+            if (formData.get('max_items')) {
+                data.max_items = parseInt(formData.get('max_items'));
+            }
+            
+            // ボタンを無効化
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 開始中...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/batch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert(`検査を開始しました。\nバッチID: ${result.batch_id}\nモード: セラーID指定\nデバイス: ${data.device_mode}`);
+                    // 実行状況タブに切り替える前に少し待機（APIの処理完了を待つ）
+                    setTimeout(() => {
+                        switchTab('status');
+                    }, 500);
+                } else {
+                    alert('検査の開始に失敗しました: ' + (result.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Failed to start inspection:', error);
+                alert('エラーが発生しました: ' + error.message);
+            } finally {
+                // ボタンを再度有効化
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<i class="fas fa-play"></i> 検査を開始';
+            }
+        });
+
+        // バッチステータスの読み込み
+        async function loadBatchStatuses() {
+            try {
+                console.log('Loading batch statuses...');
+                const response = await fetch(`${API_BASE_URL}/inspection/status`);
+                
+                if (!response.ok) {
+                    console.error('Failed to fetch statuses:', response.status, response.statusText);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const statuses = await response.json();
+                console.log('Loaded batch statuses:', statuses);
+                
+                const batchList = document.getElementById('batchList');
+                console.log('batchList element:', batchList);
+                console.log('batchList parent:', batchList ? batchList.parentElement : 'null');
+                console.log('status-tab classes:', document.getElementById('status-tab').className);
+                console.log('status-tab has active class:', document.getElementById('status-tab').classList.contains('active'));
+                
+                if (!statuses || statuses.length === 0) {
+                    batchList.innerHTML = '<p class="text-gray-500">実行中のバッチはありません</p>';
+                    return;
+                }
+                
+                // 最新のバッチを最初に表示（最大10件）
+                const recentStatuses = statuses.slice(0, 10);
+                console.log('Recent statuses to display:', recentStatuses);
+                
+                const htmlContent = recentStatuses.map(status => `
+                    <div class="border rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-semibold">バッチID: ${status.batch_id}</h3>
+                            <span class="px-3 py-1 rounded-full text-sm ${getStatusClass(status.status)}">
+                                ${status.status}
+                            </span>
+                        </div>
+                        <div class="mb-2">
+                            <div class="flex justify-between text-sm text-gray-600">
+                                <span>進捗: ${status.items_processed}/${status.items_total}</span>
+                                <span>${status.progress.toFixed(1)}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="progress-bar bg-blue-600 h-2.5 rounded-full" 
+                                     style="width: ${status.progress}%"></div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 mt-2">
+                            ${status.status === 'running' ? `
+                                <button onclick="cancelBatch('${status.batch_id}')" 
+                                        class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                                    <i class="fas fa-stop"></i> キャンセル
+                                </button>
+                            ` : ''}
+                            ${status.status === 'completed' ? `
+                                <button onclick="viewResults('${status.batch_id}')" 
+                                        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                                    <i class="fas fa-eye"></i> 結果を表示
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
+                
+                console.log('Generated HTML:', htmlContent);
+                console.log('Before setting innerHTML, batchList children count:', batchList.children.length);
+                batchList.innerHTML = htmlContent;
+                console.log('After setting innerHTML, batchList children count:', batchList.children.length);
+                console.log('HTML set to batchList');
+                console.log('batchList innerHTML length:', batchList.innerHTML.length);
+                console.log('batchList offsetHeight:', batchList.offsetHeight);
+                console.log('status-tab offsetHeight:', document.getElementById('status-tab').offsetHeight);
+                console.log('status-tab display:', window.getComputedStyle(document.getElementById('status-tab')).display);
+                console.log('Parent div offsetHeight:', batchList.parentElement.offsetHeight);
+                
+                // 遅延してから再度確認
+                setTimeout(() => {
+                    console.log('=== After delay ===');
+                    console.log('batchList offsetHeight (delayed):', batchList.offsetHeight);
+                    console.log('status-tab offsetHeight (delayed):', document.getElementById('status-tab').offsetHeight);
+                    console.log('status-tab active class:', document.getElementById('status-tab').classList.contains('active'));
+                    console.log('First child in batchList:', batchList.firstElementChild);
+                }, 100);
+            } catch (error) {
+                console.error('Failed to load batch statuses:', error);
+                const batchList = document.getElementById('batchList');
+                batchList.innerHTML = '<p class="text-red-500">バッチステータスの読み込みに失敗しました</p>';
+            }
+        }
+
+        // ステータスに応じたクラス名を返す
+        function getStatusClass(status) {
+            switch (status) {
+                case 'running': return 'bg-blue-100 text-blue-800';
+                case 'completed': return 'bg-green-100 text-green-800';
+                case 'failed': return 'bg-red-100 text-red-800';
+                case 'cancelled': return 'bg-gray-100 text-gray-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+
+        // バッチのキャンセル
+        async function cancelBatch(batchId) {
+            if (!confirm('このバッチをキャンセルしますか？')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/cancel/${batchId}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                if (result.success) {
+                    loadBatchStatuses();
+                }
+            } catch (error) {
+                console.error('Failed to cancel batch:', error);
+            }
+        }
+        
+        // 結果の表示
+        async function viewResults(batchId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/batch/${batchId}/results`);
+                const results = await response.json();
+                
+                // 結果をモーダルで表示
+                showResultsModal(results);
+            } catch (error) {
+                console.error('Failed to get results:', error);
+                alert('結果の取得に失敗しました');
+            }
+        }
+        
+        // 結果モーダルの表示
+        function showResultsModal(results) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            
+            const detectedCount = results.results ? results.results.filter(r => r.detected).length : 0;
+            
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg p-6 max-w-4xl max-h-screen overflow-y-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold">検査結果</h2>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-2xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="bg-blue-50 p-4 rounded">
+                            <div class="text-sm text-gray-600">総アイテム数</div>
+                            <div class="text-2xl font-bold">${results.total_items || 0}</div>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded">
+                            <div class="text-sm text-gray-600">検出数</div>
+                            <div class="text-2xl font-bold text-green-600">${detectedCount}</div>
+                        </div>
+                        <div class="bg-red-50 p-4 rounded">
+                            <div class="text-sm text-gray-600">失敗数</div>
+                            <div class="text-2xl font-bold text-red-600">${results.failed_items || 0}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        ${results.results && results.results.length > 0 ? results.results.map((r, i) => `
+                            <div class="border rounded p-3 ${r.detected ? 'bg-green-50' : 'bg-gray-50'}">
+                                <div class="flex justify-between">
+                                    <div>
+                                        <strong>ASIN:</strong> ${r.asin} 
+                                        ${r.detected ? `<span class="text-green-600 ml-2"><i class="fas fa-check-circle"></i> 検出</span>` : ''}
+                                    </div>
+                                    <div class="text-sm text-gray-500">#{i + 1}</div>
+                                </div>
+                                <div class="text-xs text-gray-600 mt-1">パス: ${r.image_path}</div>
+                                ${r.detected ? `
+                                    <div class="mt-2">
+                                        <strong>ラベル:</strong> ${r.labels.join(', ')}<br>
+                                        <strong>信頼度:</strong> ${r.confidence_scores.map(c => (c * 100).toFixed(1) + '%').join(', ')}
+                                    </div>
+                                ` : ''}
+                                ${r.error ? `<div class="text-red-600 mt-2"><i class="fas fa-exclamation-triangle"></i> ${r.error}</div>` : ''}
+                            </div>
+                        `).join('') : '<p class="text-gray-500">結果がありません</p>'}
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+
+        // 統計情報の読み込み
+        async function loadStatistics() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/dashboard`);
+                const data = await response.json();
+                
+                const statsDiv = document.getElementById('statistics');
+                statsDiv.innerHTML = `
+                    <div class="bg-blue-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-2">総検査数</h3>
+                        <p class="text-3xl font-bold text-blue-600">
+                            ${data.statistics.total_inspections.toLocaleString()}
+                        </p>
+                    </div>
+                    <div class="bg-green-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-2">検出率</h3>
+                        <p class="text-3xl font-bold text-green-600">
+                            ${(data.statistics.detection_rate * 100).toFixed(1)}%
+                        </p>
+                    </div>
+                    <div class="bg-purple-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-2">本日の検査数</h3>
+                        <p class="text-3xl font-bold text-purple-600">
+                            ${data.statistics.inspections_today.toLocaleString()}
+                        </p>
+                    </div>
+                `;
+                
+                // GPU情報の更新
+                updateGPUStatus(data.gpu_status);
+            } catch (error) {
+                console.error('Failed to load statistics:', error);
+            }
+        }
+
+        // GPU状態の更新
+        function updateGPUStatus(gpuStatus) {
+            const gpuInfo = document.getElementById('gpuInfo');
+            const gpuRadio = document.querySelector('input[name="device_mode"][value="gpu"]');
+            const cpuRadio = document.querySelector('input[name="device_mode"][value="cpu"]');
+            const gpuLoadSection = document.getElementById('gpuLoadSection');
+            
+            if (gpuStatus.available) {
+                gpuInfo.innerHTML = `
+                    <span class="text-green-600">
+                        <i class="fas fa-check-circle"></i> ${gpuStatus.device_name} 
+                        (${gpuStatus.memory_allocated.toFixed(1)}GB / ${gpuStatus.memory_reserved.toFixed(1)}GB)
+                    </span>
+                `;
+                // GPUが利用可能な場合はGPUモードを有効化
+                gpuRadio.disabled = false;
+            } else {
+                gpuInfo.innerHTML = '<span class="text-yellow-600"><i class="fas fa-exclamation-triangle"></i> GPU not available (CPU mode only)</span>';
+                // GPUが利用不可の場合はGPUモードを無効化
+                gpuRadio.disabled = true;
+                cpuRadio.checked = true;
+            }
+            
+            // デバイスモード変更時のGPU負荷率表示制御
+            document.querySelectorAll('input[name="device_mode"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'gpu') {
+                        gpuLoadSection.style.display = 'block';
+                    } else {
+                        gpuLoadSection.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // デバイス情報の取得
+        async function loadDeviceInfo() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/device-info`);
+                const info = await response.json();
+                
+                // GPU情報を更新
+                updateGPUStatus(info.gpu_status);
+                
+                // 現在のデバイスモードを表示
+                const currentDevice = info.current_device_mode || 'cpu';
+                document.querySelector(`input[name="device_mode"][value="${currentDevice}"]`).checked = true;
+            } catch (error) {
+                console.error('Failed to load device info:', error);
+            }
+        }
+        
+        // 定期更新のインターバルID
+        let refreshInterval = null;
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Page loaded, initializing...');
+            loadModels();
+            loadStatistics();
+            loadDeviceInfo();
+            
+            // 定期的に状態を更新
+            refreshInterval = setInterval(() => {
+                if (document.getElementById('status-tab').classList.contains('active')) {
+                    console.log('Auto-refreshing batch statuses...');
+                    loadBatchStatuses();
+                }
+            },20000);
+        });
+        
+        // デバッグ用: 定期更新を停止する関数
+        function stopRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                console.log('Auto-refresh stopped');
+            }
+        }
+        
+        // デバッグ用: 実行状況タブを強制的に表示
+        function forceShowStatus() {
+            const statusTab = document.getElementById('status-tab');
+            console.log('Force showing status tab...');
+            console.log('Current classes:', statusTab.className);
+            
+            // 全てのタブを非表示にして、実行状況タブだけを表示
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.style.display = 'none';
+            });
+            statusTab.style.display = 'block';
+            
+            // batchListの内容を確認
+            const batchList = document.getElementById('batchList');
+            console.log('batchList content:', batchList.innerHTML.substring(0, 200) + '...');
+            console.log('batchList children:', batchList.children.length);
+        }
+        
+        // デバッグ用: activeクラスのテスト
+        function testActiveClass() {
+            const statusTab = document.getElementById('status-tab');
+            console.log('Testing active class...');
+            console.log('Before: classes =', statusTab.className);
+            console.log('Before: has active =', statusTab.classList.contains('active'));
+            
+            // activeクラスを削除してから追加
+            statusTab.classList.remove('active');
+            statusTab.classList.add('active');
+            
+            console.log('After: classes =', statusTab.className);
+            console.log('After: has active =', statusTab.classList.contains('active'));
+            console.log('Computed style display =', window.getComputedStyle(statusTab).display);
+        }
+        
+        // デバッグ用: 実行状況タブの内容を直接確認
+        function inspectStatusTab() {
+            const statusTab = document.getElementById('status-tab');
+            const batchList = document.getElementById('batchList');
+            
+            console.log('=== Status Tab Inspection ===');
+            console.log('Status tab element:', statusTab);
+            console.log('Status tab innerHTML length:', statusTab.innerHTML.length);
+            console.log('Status tab getBoundingClientRect:', statusTab.getBoundingClientRect());
+            console.log('Batch list element:', batchList);
+            console.log('Batch list children:', Array.from(batchList.children));
+            console.log('First child offsetHeight:', batchList.firstElementChild ? batchList.firstElementChild.offsetHeight : 'no children');
+            
+            // 親要素の階層を確認
+            let parent = batchList;
+            let level = 0;
+            while (parent && level < 5) {
+                console.log(`Parent level ${level}:`, parent.tagName, parent.className, 'offsetHeight:', parent.offsetHeight);
+                parent = parent.parentElement;
+                level++;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -6,7 +6,6 @@ from typing import Dict, Any
 
 from src.models.schemas import HealthResponse, MetricsResponse
 from src.core.detection_engine import get_detection_engine
-from src.core.batch_processor import get_batch_processor
 from src.utils.metrics import get_metrics_collector
 from src.utils.logger import get_logger
 
@@ -92,9 +91,6 @@ async def detailed_health_check() -> Dict[str, Any]:
         detection_engine = get_detection_engine()
         model_info = detection_engine.get_model_info()
         
-        # Get batch processor status
-        batch_processor = get_batch_processor()
-        processor_status = batch_processor.get_status()
         
         # Get metrics collector status
         metrics_collector = get_metrics_collector()
@@ -146,7 +142,6 @@ async def detailed_health_check() -> Dict[str, Any]:
             "issues": issues,
             "components": {
                 "detection_engine": model_info,
-                "batch_processor": processor_status,
                 "metrics": current_metrics
             },
             "system": system_details

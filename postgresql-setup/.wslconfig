@@ -1,0 +1,37 @@
+# WSL2 Configuration for PostgreSQL High-Performance Setup
+# Place this file in your Windows user directory: C:\Users\<YourUsername>\.wslconfig
+# Restart WSL after changes: wsl --shutdown
+
+[wsl2]
+# Memory allocation - Conservative to aggressive settings
+# Phase 1: Start with 64GB (50% of system RAM)
+memory=64GB
+
+# Phase 2: Increase to 96GB (75% of system RAM) after testing
+# memory=96GB
+
+# Phase 3: Maximum allocation 112GB (87.5% of system RAM)
+# memory=112GB
+
+# CPU allocation - Use all available cores
+processors=24
+
+# Swap configuration
+swap=16GB
+swapfile=C:\\temp\\wsl-swap.vhdx
+
+# Disk I/O optimizations
+pageReporting=false
+guiApplications=false
+nestedVirtualization=true
+
+# Network optimizations
+localhostforwarding=true
+
+# Kernel optimizations for PostgreSQL
+kernelCommandLine = transparent_hugepage=madvise numa_balancing=enable
+
+[experimental]
+# Enable new WSL features that might improve performance
+autoMemoryReclaim=gradual
+sparseVhd=true

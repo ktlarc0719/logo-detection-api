@@ -84,10 +84,7 @@ class TrainingEngine:
         directories = [
             self.settings.training_data_dir,
             self.settings.training_output_dir,
-            self.settings.training_log_dir,
-            os.path.join(self.settings.training_data_dir, "train"),
-            os.path.join(self.settings.training_data_dir, "val"),
-            os.path.join(self.settings.training_data_dir, "test")
+            self.settings.training_log_dir
         ]
         
         for directory in directories:

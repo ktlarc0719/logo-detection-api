@@ -106,12 +106,23 @@ class MultiModelDetectionEngine:
             
             # Store model and info
             self.models[model_name] = model
+            
+            # Get class names from the model
+            model_classes = {}
+            if hasattr(model, 'names'):
+                model_classes = model.names
+            elif hasattr(model, 'model') and hasattr(model.model, 'names'):
+                model_classes = model.model.names
+            
+            # Log the detected classes
+            logger.info(f"Model '{model_name}' classes: {model_classes}")
+            
             self.model_info[model_name] = {
                 "name": model_name,
                 "path": str(model_path),
                 "device": self.device,
-                "classes": getattr(model, 'names', {}),
-                "num_classes": len(getattr(model, 'names', {}))
+                "classes": model_classes,
+                "num_classes": len(model_classes)
             }
             
             # Warm up the model with a dummy inference
@@ -354,8 +365,14 @@ class MultiModelDetectionEngine:
                 confidences = boxes.conf.cpu().numpy()
                 classes = boxes.cls.cpu().numpy()
                 
-                # Get class names
-                class_names = result.names
+                # Get class names from the model
+                if hasattr(self.models[model_name], 'names'):
+                    class_names = self.models[model_name].names
+                elif hasattr(result, 'names') and result.names:
+                    class_names = result.names
+                else:
+                    # Fallback to model info
+                    class_names = self.model_info.get(model_name, {}).get('classes', {})
                 
                 # Create Detection objects with enhanced information
                 for i in range(len(coords)):
@@ -368,6 +385,10 @@ class MultiModelDetectionEngine:
                     # Get class name
                     class_id = int(classes[i])
                     raw_logo_name = class_names.get(class_id, f"class_{class_id}")
+                    
+                    # Debug logging
+                    if raw_logo_name.startswith("class_"):
+                        logger.warning(f"Class name not found for ID {class_id}. Available classes: {class_names}")
                     
                     # Apply brand classification if enabled
                     brand_info = None
@@ -460,7 +481,8 @@ class MultiModelDetectionEngine:
                     detections = self._process_results(
                         [result],
                         confidence_threshold,
-                        max_detections
+                        max_detections,
+                        self.current_model_name
                     )
                     all_detections.append(detections)
                 

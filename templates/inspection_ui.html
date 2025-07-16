@@ -1,0 +1,1709 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>画像検査管理UI - Updated</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .progress-bar { transition: width 0.3s ease; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <!-- タブメニュー -->
+        <div class="flex border-b bg-white rounded-lg shadow-md mb-6">
+            <button class="tab-button px-6 py-3 font-semibold text-blue-600 border-b-2 border-blue-600" 
+                    onclick="switchTab('new', this)">
+                <i class="fas fa-plus-circle"></i> 新規検査
+            </button>
+            <button class="tab-button px-6 py-3 font-semibold text-gray-600 hover:text-blue-600" 
+                    onclick="switchTab('status', this)">
+                <i class="fas fa-tasks"></i> 実行状況
+            </button>
+            <button class="tab-button px-6 py-3 font-semibold text-gray-600 hover:text-blue-600" 
+                    onclick="switchTab('stats', this)">
+                <i class="fas fa-chart-bar"></i> 統計情報
+            </button>
+            <button class="tab-button px-6 py-3 font-semibold text-gray-600 hover:text-blue-600" 
+                    onclick="switchTab('settings', this)">
+                <i class="fas fa-cog"></i> 設定
+            </button>
+        </div>
+
+        <!-- 新規検査タブ -->
+        <div id="new-tab" class="tab-content active">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-6">新規検査の開始</h2>
+                
+                <form id="inspectionForm" class="space-y-6">
+                    <!-- 検査対象選択 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">検査対象</label>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="radio" name="inspection_target" value="uninspected" checked class="mr-2">
+                                <span>未検査のみ</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="inspection_target" value="all" class="mr-2">
+                                <span>全検査</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- モデル選択 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">検査モデル</label>
+                        <select id="modelSelect" name="model_name" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <option value="">読み込み中...</option>
+                        </select>
+                    </div>
+
+                    <!-- デバイスモード選択 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">デバイスモード</label>
+                        <div class="flex items-center space-x-6">
+                            <div class="flex space-x-4">
+                                <label class="flex items-center">
+                                    <input type="radio" name="device_mode" value="cpu" checked class="mr-2">
+                                    <span>CPU モード</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="device_mode" value="gpu" class="mr-2">
+                                    <span>GPU モード</span>
+                                </label>
+                            </div>
+                            <!-- GPU状態表示 -->
+                            <div id="gpuStatusInline" class="flex items-center ml-auto">
+                                <span class="text-sm text-gray-600 mr-2">GPU状態:</span>
+                                <span id="gpuInfo" class="text-sm">読み込み中...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- GPU負荷率 -->
+                    <div id="gpuLoadSection">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            GPU負荷率: <span id="gpuLoadValue">80</span>%
+                        </label>
+                        <input type="range" name="gpu_load_rate" min="0" max="100" value="80" 
+                               class="w-full" oninput="updateGPULoad(this.value)">
+                    </div>
+
+                    <!-- セラーID入力フィールド -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            セラーID <span class="text-red-500">*</span>
+                            <span class="text-xs text-gray-500 ml-2">(例: A3OBH97MEO1982)</span>
+                        </label>
+                        <input type="text" name="seller_id" placeholder="A3OBH97MEO1982" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <p class="text-xs text-gray-500 mt-1">
+                            画像パス: /mnt/c/03_amazon_images/{セラーID}/
+                        </p>
+                    </div>
+
+                    <!-- 共通パラメータセクション -->
+                    <div class="border-t pt-4 mt-4">
+                        <h3 class="text-lg font-semibold mb-4">共通パラメータ</h3>
+                        
+                        <!-- 処理上限数 -->
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                処理上限数
+                            </label>
+                            <div class="flex items-center space-x-3">
+                                <input type="number" name="max_items" min="1" max="10000" placeholder="1000" 
+                                       id="maxItemsInput" class="flex-1 px-3 py-2 border border-gray-300 rounded-md">
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="process_all" id="processAllCheck" class="mr-2" 
+                                           onchange="toggleProcessAll()">
+                                    <span>全件処理</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 検査パラメータ -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">信頼度閾値</label>
+                            <input type="number" name="confidence_threshold" min="0.1" max="1.0" 
+                                   step="0.1" value="0.5" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">最大検出数</label>
+                            <input type="number" name="max_detections" min="1" max="100" value="10" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+
+                    <!-- 実行ボタン -->
+                    <button type="submit" 
+                            class="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 transition duration-200">
+                        <i class="fas fa-play"></i> 検査を開始
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 実行状況タブ -->
+        <div id="status-tab" class="tab-content">
+            <!-- キューステータス -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-2xl font-bold mb-6">キューステータス</h2>
+                <div id="queueStatus" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <div class="text-sm text-blue-600 font-medium">キュー内待機中</div>
+                        <div class="text-2xl font-bold text-blue-800" id="queueLength">0</div>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-4">
+                        <div class="text-sm text-green-600 font-medium">処理中</div>
+                        <div class="text-2xl font-bold text-green-800" id="processingCount">0</div>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <div class="text-sm text-gray-600 font-medium">ステータス</div>
+                        <div class="text-sm font-medium text-gray-800" id="queueStatusText">待機中</div>
+                    </div>
+                </div>
+                
+                <!-- キュー内アイテム一覧 -->
+                <div id="queueItems" class="space-y-2">
+                    <!-- 動的に生成 -->
+                </div>
+            </div>
+            
+            <!-- 実行中バッチ一覧 -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-6">実行中バッチ</h2>
+                <div id="batchList" class="space-y-4">
+                    <!-- 動的に生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 統計情報タブ -->
+        <div id="stats-tab" class="tab-content">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-6">統計情報</h2>
+                <div id="statistics" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- 動的に生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 設定タブ -->
+        <div id="settings-tab" class="tab-content">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-6">設定</h2>
+                
+                <form id="settingsForm" class="space-y-6">
+                    <!-- デフォルト検査パラメータ -->
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-semibold mb-4">デフォルト検査パラメータ</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- 処理上限数 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    デフォルト処理上限数
+                                </label>
+                                <input type="number" id="defaultMaxItems" name="max_items" 
+                                       min="1" max="100000" value="1000" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                <p class="text-xs text-gray-500 mt-1">新規検査時のデフォルト値</p>
+                            </div>
+
+                            <!-- 信頼度閾値 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    デフォルト信頼度閾値
+                                </label>
+                                <input type="number" id="defaultConfidenceThreshold" name="confidence_threshold" 
+                                       min="0.1" max="1.0" step="0.05" value="0.5" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                <p class="text-xs text-gray-500 mt-1">0.1 - 1.0 の範囲で設定</p>
+                            </div>
+
+                            <!-- 最大検出数 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    デフォルト最大検出数
+                                </label>
+                                <input type="number" id="defaultMaxDetections" name="max_detections" 
+                                       min="1" max="100" value="10" 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                <p class="text-xs text-gray-500 mt-1">1画像あたりの最大検出数</p>
+                            </div>
+
+                            <!-- GPU負荷率 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    デフォルトGPU負荷率: <span id="defaultGpuLoadValue">80</span>%
+                                </label>
+                                <input type="range" id="defaultGpuLoadRate" name="gpu_load_rate" 
+                                       min="10" max="100" value="80" 
+                                       class="w-full" oninput="updateDefaultGPULoad(this.value)">
+                                <p class="text-xs text-gray-500 mt-1">GPU使用時の負荷率</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- バッチ処理設定 -->
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-semibold mb-4">バッチ処理設定</h3>
+                        
+                        <!-- デバイス別設定タブ -->
+                        <div class="mb-4">
+                            <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                                <button type="button" id="cpuSettingsTab" onclick="switchDeviceSettings('cpu')" 
+                                        class="flex-1 px-4 py-2 text-sm font-medium rounded-md bg-white shadow">
+                                    CPU設定
+                                </button>
+                                <button type="button" id="gpuSettingsTab" onclick="switchDeviceSettings('gpu')" 
+                                        class="flex-1 px-4 py-2 text-sm font-medium rounded-md text-gray-600">
+                                    GPU設定
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- CPU設定 -->
+                        <div id="cpuSettings" class="device-settings">
+                            <div class="bg-blue-50 p-4 rounded-lg mb-4">
+                                <h4 class="font-medium text-blue-800 mb-2">CPU処理設定（推奨値: i7-1260P）</h4>
+                                <p class="text-sm text-blue-600">バッチサイズ: 8-16, 並列処理: 8-12</p>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        CPUバッチサイズ
+                                    </label>
+                                    <input type="number" id="cpuBatchSize" name="cpu_batch_size" 
+                                           min="1" max="128" value="12" 
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    <p class="text-xs text-gray-500 mt-1">CPU使用時の一度に処理する画像数</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        CPU並列処理数
+                                    </label>
+                                    <input type="number" id="cpuParallelProcesses" name="cpu_parallel_processes" 
+                                           min="1" max="24" value="10" 
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    <p class="text-xs text-gray-500 mt-1">CPU使用時の同時実行プロセス数</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        CPU処理タイムアウト（秒）
+                                    </label>
+                                    <input type="number" id="cpuProcessingTimeout" name="cpu_processing_timeout" 
+                                           min="10" max="3600" value="180" 
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        CPU再試行回数
+                                    </label>
+                                    <input type="number" id="cpuRetryCount" name="cpu_retry_count" 
+                                           min="0" max="5" value="2" 
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- GPU設定 -->
+                        <div id="gpuSettings" class="device-settings hidden">
+                            <div class="bg-green-50 p-4 rounded-lg mb-4">
+                                <h4 class="font-medium text-green-800 mb-2">GPU処理設定（推奨値: RTX 5080）</h4>
+                                <p class="text-sm text-green-600">バッチサイズ: 64-128, 並列処理: 4-8</p>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        GPUバッチサイズ
+                                    </label>
+                                    <input type="number" id="gpuBatchSize" name="gpu_batch_size" 
+                                           min="1" max="512" value="48" 
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    <p class="text-xs text-gray-500 mt-1">GPU使用時の一度に処理する画像数</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        GPU並列処理数
+                                    </label>
+                                    <input type="number" id="gpuParallelProcesses" name="gpu_parallel_processes" 
+                                           min="1" max="8" value="3" 
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    <p class="text-xs text-gray-500 mt-1">GPU使用時の同時実行プロセス数</p>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        GPU処理タイムアウト（秒）
+                                    </label>
+                                    <input type="number" id="gpuProcessingTimeout" name="gpu_processing_timeout" 
+                                           min="10" max="3600" value="120" 
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        GPU再試行回数
+                                    </label>
+                                    <input type="number" id="gpuRetryCount" name="gpu_retry_count" 
+                                           min="0" max="5" value="1" 
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- UI設定 -->
+                    <div class="pb-6">
+                        <h3 class="text-lg font-semibold mb-4">UI設定</h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- 結果表示件数 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    結果表示件数（1ページあたり）
+                                </label>
+                                <select id="resultsPerPage" name="results_per_page" 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    <option value="25">25件</option>
+                                    <option value="50" selected>50件</option>
+                                    <option value="100">100件</option>
+                                    <option value="200">200件</option>
+                                </select>
+                            </div>
+
+                            <!-- 自動更新間隔 -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    自動更新間隔（秒）
+                                </label>
+                                <select id="autoRefreshInterval" name="auto_refresh_interval" 
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    <option value="5">5秒</option>
+                                    <option value="10">10秒</option>
+                                    <option value="20" selected>20秒</option>
+                                    <option value="60">60秒</option>
+                                    <option value="0">無効</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 保存ボタン -->
+                    <div class="flex justify-end space-x-4">
+                        <button type="button" onclick="resetSettings()" 
+                                class="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+                            デフォルトに戻す
+                        </button>
+                        <button type="submit" 
+                                class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            設定を保存
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- データセット管理タブ -->
+        <div id="dataset-tab" class="tab-content hidden">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-6">データセット管理</h2>
+                
+                <!-- データセットスプリットエリア -->
+                <div class="mb-8 p-6 bg-gray-50 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4">
+                        <i class="fas fa-split"></i> 画像データスプリット
+                    </h3>
+                    
+                    <form id="datasetSplitForm" class="space-y-4">
+                        <!-- コピー元ディレクトリ -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                コピー元ディレクトリ <span class="text-gray-500 text-xs">（ディレクトリ名がクラス名になります）</span>
+                            </label>
+                            <input type="text" id="sourceDirectory" name="source_directory" 
+                                   placeholder="/path/to/source/directory"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        
+                        <!-- コピー先データセット -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                コピー先データセット
+                            </label>
+                            <div class="flex space-x-2">
+                                <select id="destinationDataset" name="destination_dataset" 
+                                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md"
+                                        onchange="toggleNewDatasetInput()">
+                                    <option value="">既存のデータセットを選択...</option>
+                                    <option value="__new__">新規データセットを作成</option>
+                                </select>
+                                <input type="text" id="newDatasetName" name="new_dataset_name" 
+                                       placeholder="新規データセット名"
+                                       class="flex-1 px-3 py-2 border border-gray-300 rounded-md hidden">
+                            </div>
+                        </div>
+                        
+                        <!-- スプリット比率 -->
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Train比率
+                                </label>
+                                <input type="number" id="trainRatio" name="train_ratio" 
+                                       value="0.69" min="0" max="1" step="0.01"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                       onchange="updateRatioSum()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Validation比率
+                                </label>
+                                <input type="number" id="valRatio" name="val_ratio" 
+                                       value="0.17" min="0" max="1" step="0.01"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                       onchange="updateRatioSum()">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Test比率
+                                </label>
+                                <input type="number" id="testRatio" name="test_ratio" 
+                                       value="0.14" min="0" max="1" step="0.01"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md"
+                                       onchange="updateRatioSum()">
+                            </div>
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            合計: <span id="ratioSum" class="font-bold">1.00</span>
+                            <span id="ratioError" class="text-red-600 ml-2 hidden">合計が1.0になるように調整してください</span>
+                        </div>
+                        
+                        <!-- ランダムシード -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                ランダムシード <span class="text-gray-500 text-xs">（再現性確保のため）</span>
+                            </label>
+                            <input type="number" id="randomSeed" name="random_seed" 
+                                   value="42" min="0"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        
+                        <!-- 実行ボタン -->
+                        <div class="flex justify-end">
+                            <button type="submit" 
+                                    class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                                    id="splitButton">
+                                <i class="fas fa-play"></i> スプリット実行
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- 実行結果表示エリア -->
+                <div id="splitResultArea" class="mb-8 p-6 bg-blue-50 rounded-lg hidden">
+                    <h3 class="text-lg font-semibold mb-4">スプリット結果</h3>
+                    <div id="splitProgress" class="mb-4">
+                        <div class="w-full bg-gray-200 rounded-full h-4">
+                            <div class="bg-blue-600 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div id="splitResult" class="font-mono text-sm"></div>
+                </div>
+                
+                <!-- クラス削除エリア -->
+                <div class="p-6 bg-red-50 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4 text-red-800">
+                        <i class="fas fa-trash-alt"></i> クラス別一括削除
+                    </h3>
+                    
+                    <form id="classDeleteForm" class="space-y-4">
+                        <!-- 削除対象データセット -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                削除対象データセット
+                            </label>
+                            <select id="deleteDataset" name="delete_dataset" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                <option value="">データセットを選択...</option>
+                            </select>
+                        </div>
+                        
+                        <!-- 削除クラス名 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                削除するクラス名
+                            </label>
+                            <input type="text" id="deleteClassName" name="delete_class_name" 
+                                   placeholder="クラス名を入力"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        
+                        <!-- 確認チェックボックス -->
+                        <div class="flex items-center">
+                            <input type="checkbox" id="confirmDelete" name="confirm_delete" 
+                                   class="mr-2">
+                            <label for="confirmDelete" class="text-sm text-red-600">
+                                削除を実行することを確認しました
+                            </label>
+                        </div>
+                        
+                        <!-- 削除ボタン -->
+                        <div class="flex justify-end">
+                            <button type="submit" 
+                                    class="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400"
+                                    id="deleteButton">
+                                <i class="fas fa-trash"></i> 削除実行
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- 削除結果表示エリア -->
+                <div id="deleteResultArea" class="mt-4 p-6 bg-gray-50 rounded-lg hidden">
+                    <h3 class="text-lg font-semibold mb-4">削除結果</h3>
+                    <div id="deleteResult" class="font-mono text-sm"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API Base URL
+        const API_BASE_URL = window.location.origin + '/api/v1';
+
+        // タブ切り替え
+        function switchTab(tabName, clickedButton) {
+            // 全てのタブコンテンツを非表示
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // 全てのタブボタンのスタイルをリセット
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+                button.classList.add('text-gray-600');
+            });
+            
+            // 選択されたタブを表示
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            // クリックされたボタンまたは対応するボタンをアクティブに
+            if (clickedButton) {
+                clickedButton.classList.remove('text-gray-600');
+                clickedButton.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+            } else {
+                // ボタンが渡されていない場合は、タブ名から対応するボタンを探す
+                const tabIndex = tabName === 'new' ? 0 : tabName === 'status' ? 1 : tabName === 'stats' ? 2 : 3;
+                const buttons = document.querySelectorAll('.tab-button');
+                if (buttons[tabIndex]) {
+                    buttons[tabIndex].classList.remove('text-gray-600');
+                    buttons[tabIndex].classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+                }
+            }
+            
+            // タブに応じた処理
+            if (tabName === 'status') {
+                loadQueueStatus();
+                loadBatchStatuses();
+                // 定期的に更新
+                if (window.statusInterval) {
+                    clearInterval(window.statusInterval);
+                }
+                window.statusInterval = setInterval(() => {
+                    loadQueueStatus();
+                    loadBatchStatuses();
+                }, 5000); // 5秒ごとに更新
+            } else {
+                // 他のタブに切り替えたら更新を停止
+                if (window.statusInterval) {
+                    clearInterval(window.statusInterval);
+                    window.statusInterval = null;
+                }
+                
+                if (tabName === 'stats') {
+                    loadStatistics();
+                } else if (tabName === 'settings') {
+                    loadSettings();
+                }
+            }
+        }
+
+        
+        // 全件処理チェックボックスの切り替え
+        function toggleProcessAll() {
+            const checkbox = document.getElementById('processAllCheck');
+            const input = document.getElementById('maxItemsInput');
+            
+            if (checkbox.checked) {
+                input.disabled = true;
+                input.value = '';
+                input.placeholder = '全件処理';
+            } else {
+                input.disabled = false;
+                input.placeholder = '1000';
+            }
+        }
+
+        // GPU負荷率の更新
+        function updateGPULoad(value) {
+            document.getElementById('gpuLoadValue').textContent = value;
+        }
+
+        // モデル一覧の読み込み
+        async function loadModels() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/models`);
+                const data = await response.json();
+                
+                const select = document.getElementById('modelSelect');
+                select.innerHTML = data.models.map(model => 
+                    `<option value="${model.name}" ${model.is_current ? 'selected' : ''}>
+                        ${model.name} ${model.loaded ? '(読み込み済み)' : ''}
+                    </option>`
+                ).join('');
+            } catch (error) {
+                console.error('Failed to load models:', error);
+            }
+        }
+
+        // フォームの送信
+        document.getElementById('inspectionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const sellerId = formData.get('seller_id');
+            
+            if (!sellerId) {
+                alert('セラーIDを入力してください');
+                return;
+            }
+            
+            const data = {
+                mode: 'seller',
+                model_name: formData.get('model_name'),
+                device_mode: formData.get('device_mode'),
+                gpu_load_rate: parseInt(formData.get('gpu_load_rate')) / 100,
+                confidence_threshold: parseFloat(formData.get('confidence_threshold')),
+                max_detections: parseInt(formData.get('max_detections')),
+                sellers: [sellerId],
+                only_uninspected: formData.get('inspection_target') === 'uninspected'
+            };
+            
+            // 全件処理フラグ
+            data.process_all = formData.get('process_all') === 'on';
+            
+            if (formData.get('max_items')) {
+                data.max_items = parseInt(formData.get('max_items'));
+            }
+            
+            // ボタンを無効化
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 開始中...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert(`検査リクエストをキューに追加しました。\nキューID: ${result.queue_id}\nセラーID: ${sellerId}`);
+                    switchTab('status');
+                } else {
+                    alert('検査の開始に失敗しました: ' + (result.detail || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Failed to start inspection:', error);
+                alert('エラーが発生しました: ' + error.message);
+            } finally {
+                // ボタンを再度有効化
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<i class="fas fa-play"></i> 検査を開始';
+            }
+        });
+
+        // キューステータスの読み込み
+        async function loadQueueStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/queue/status`);
+                const queueData = await response.json();
+                
+                // キューステータスの更新
+                document.getElementById('queueLength').textContent = queueData.queue_length;
+                document.getElementById('processingCount').textContent = queueData.processing ? '1' : '0';
+                document.getElementById('queueStatusText').textContent = 
+                    queueData.processing ? '処理中' : (queueData.queue_length > 0 ? '待機中' : 'アイドル');
+                
+                // キューアイテム一覧の更新
+                const queueItems = document.getElementById('queueItems');
+                if (queueData.pending_items.length === 0 && !queueData.processing_item) {
+                    queueItems.innerHTML = '<p class="text-gray-500 text-center">キューは空です</p>';
+                } else {
+                    let html = '';
+                    
+                    // 処理中のアイテム
+                    if (queueData.processing_item) {
+                        html += `
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <span class="text-sm font-medium text-green-800">処理中</span>
+                                        <p class="text-xs text-green-600">Queue ID: ${queueData.processing_item.queue_id}</p>
+                                        ${queueData.processing_item.batch_id ? 
+                                            `<p class="text-xs text-green-600">Batch ID: ${queueData.processing_item.batch_id}</p>` : ''}
+                                    </div>
+                                    <div class="text-sm text-green-600">
+                                        <i class="fas fa-spinner fa-spin"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // 待機中のアイテム
+                    queueData.pending_items.forEach(item => {
+                        html += `
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <span class="text-sm font-medium text-gray-700">位置: ${item.position}</span>
+                                        <p class="text-xs text-gray-500">Queue ID: ${item.queue_id}</p>
+                                        ${item.seller_id ? 
+                                            `<p class="text-xs text-gray-500">Seller: ${item.seller_id}</p>` : ''}
+                                    </div>
+                                    <button onclick="cancelQueueItem('${item.queue_id}')" 
+                                            class="text-red-600 hover:text-red-800">
+                                        <i class="fas fa-times-circle"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    queueItems.innerHTML = html;
+                }
+            } catch (error) {
+                console.error('Failed to load queue status:', error);
+            }
+        }
+        
+        // キューアイテムのキャンセル
+        async function cancelQueueItem(queueId) {
+            if (!confirm('このキューアイテムをキャンセルしますか？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/queue/${queueId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    alert('キューアイテムをキャンセルしました');
+                    loadQueueStatus();
+                } else {
+                    const error = await response.json();
+                    alert(`キャンセルに失敗しました: ${error.detail}`);
+                }
+            } catch (error) {
+                alert('キャンセル中にエラーが発生しました');
+                console.error(error);
+            }
+        }
+        
+        // バッチステータスの読み込み
+        async function loadBatchStatuses() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/active`);
+                const statuses = await response.json();
+                
+                const batchList = document.getElementById('batchList');
+                if (statuses.length === 0) {
+                    batchList.innerHTML = '<p class="text-gray-500">実行中のバッチはありません</p>';
+                    return;
+                }
+                
+                batchList.innerHTML = statuses.map(status => `
+                    <div class="border rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-semibold">バッチID: ${status.batch_id}</h3>
+                            <span class="px-3 py-1 rounded-full text-sm ${getStatusClass(status.status)}">
+                                ${status.status}
+                            </span>
+                        </div>
+                        <div class="mb-2">
+                            <div class="flex justify-between text-sm text-gray-600">
+                                <span>進捗: ${status.status === 'completed' ? status.items_total : status.items_processed}/${status.items_total}</span>
+                                <span>${status.progress.toFixed(1)}%</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="progress-bar bg-blue-600 h-2.5 rounded-full" 
+                                     style="width: ${status.progress}%"></div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-sm text-gray-600 mb-2">
+                            <div>
+                                <i class="fas fa-cube"></i> モデル: ${status.model_name || 'N/A'}
+                            </div>
+                            <div>
+                                <i class="fas fa-clock"></i> 経過時間: ${formatElapsedTime(status.elapsed_time)}
+                            </div>
+                            <div>
+                                <i class="fas fa-tachometer-alt"></i> 速度: ${formatImagesPerHour(status.images_per_hour)}
+                            </div>
+                        </div>
+                        <div class="flex gap-2 mt-2">
+                            ${status.status === 'running' ? `
+                                <button onclick="cancelBatch('${status.batch_id}')" 
+                                        class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                                    <i class="fas fa-stop"></i> キャンセル
+                                </button>
+                            ` : ''}
+                            ${status.status === 'completed' ? `
+                                <button onclick="viewResults('${status.batch_id}')" 
+                                        class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                                    <i class="fas fa-eye"></i> 結果を表示
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load batch statuses:', error);
+            }
+        }
+
+        // ステータスに応じたクラス名を返す
+        function getStatusClass(status) {
+            switch (status) {
+                case 'running': return 'bg-blue-100 text-blue-800';
+                case 'completed': return 'bg-green-100 text-green-800';
+                case 'failed': return 'bg-red-100 text-red-800';
+                case 'cancelled': return 'bg-gray-100 text-gray-800';
+                default: return 'bg-gray-100 text-gray-800';
+            }
+        }
+        
+        // 経過時間のフォーマット
+        function formatElapsedTime(seconds) {
+            if (!seconds) return 'N/A';
+            if (seconds < 60) return `${seconds.toFixed(1)}秒`;
+            if (seconds < 3600) return `${(seconds / 60).toFixed(1)}分`;
+            return `${(seconds / 3600).toFixed(1)}時間`;
+        }
+        
+        // 画像処理速度のフォーマット
+        function formatImagesPerHour(imagesPerHour) {
+            if (!imagesPerHour) return 'N/A';
+            return `${imagesPerHour.toFixed(0)} 枚/時`;
+        }
+
+        // バッチのキャンセル
+        async function cancelBatch(batchId) {
+            if (!confirm('このバッチをキャンセルしますか？')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/cancel/${batchId}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                if (result.success) {
+                    loadBatchStatuses();
+                }
+            } catch (error) {
+                console.error('Failed to cancel batch:', error);
+            }
+        }
+        
+        // 結果の表示
+        async function viewResults(batchId) {
+            try {
+                console.log('Fetching results for batch:', batchId);
+                const response = await fetch(`${API_BASE_URL}/inspection/batch/${batchId}/results`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const results = await response.json();
+                console.log('Results received:', results);
+                
+                // 結果をモーダルで表示（ページネーション対応）
+                showResultsModal(results, batchId);
+            } catch (error) {
+                console.error('Failed to get results:', error);
+                alert('結果の取得に失敗しました: ' + error.message);
+            }
+        }
+        
+        // 結果モーダルの表示
+        function showResultsModal(results, batchId) {
+            console.log('showResultsModal called with:', results, batchId);
+            
+            // Remove existing modal if any
+            const existingModal = document.getElementById('resultsModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            modal.id = 'resultsModal';
+            
+            // State management
+            window.resultsModalState = {
+                currentPage: 1,
+                itemsPerPage: 50,
+                filter: 'all', // all, detected, undetected
+                results: results.results || [],
+                batchId: batchId
+            };
+            
+            document.body.appendChild(modal);
+            updateResultsModal();
+        }
+        
+        // 結果モーダルの更新
+        function updateResultsModal() {
+            console.log('updateResultsModal called');
+            const state = window.resultsModalState;
+            const modal = document.getElementById('resultsModal');
+            if (!modal) {
+                console.error('Modal element not found');
+                return;
+            }
+            
+            // Filter results
+            let filteredResults = state.results;
+            if (state.filter === 'detected') {
+                filteredResults = state.results.filter(r => r.detected);
+            } else if (state.filter === 'undetected') {
+                filteredResults = state.results.filter(r => !r.detected);
+            }
+            
+            // Pagination
+            const totalPages = Math.ceil(filteredResults.length / state.itemsPerPage);
+            const startIndex = (state.currentPage - 1) * state.itemsPerPage;
+            const pageResults = filteredResults.slice(startIndex, startIndex + state.itemsPerPage);
+            
+            // Statistics
+            const detectedCount = state.results.filter(r => r.detected).length;
+            const failedCount = state.results.filter(r => r.error).length;
+            
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg flex flex-col" style="width: 90vw; height: 90vh;">
+                    <!-- Header -->
+                    <div class="flex justify-between items-center p-6 border-b">
+                        <h2 class="text-2xl font-bold">検査結果</h2>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-2xl"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Fixed statistics -->
+                    <div class="p-6 border-b">
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            <div class="bg-blue-50 p-4 rounded">
+                                <div class="text-sm text-gray-600">総アイテム数</div>
+                                <div class="text-2xl font-bold">${state.results.length}</div>
+                            </div>
+                            <div class="bg-green-50 p-4 rounded">
+                                <div class="text-sm text-gray-600">検出数</div>
+                                <div class="text-2xl font-bold text-green-600">${detectedCount}</div>
+                            </div>
+                            <div class="bg-red-50 p-4 rounded">
+                                <div class="text-sm text-gray-600">失敗数</div>
+                                <div class="text-2xl font-bold text-red-600">${failedCount}</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Filter and controls -->
+                        <div class="flex items-center justify-between">
+                            <div class="flex gap-2">
+                                <button onclick="setResultsFilter('all')" 
+                                        class="px-4 py-2 rounded ${state.filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200'}">
+                                    全件 (${state.results.length})
+                                </button>
+                                <button onclick="setResultsFilter('detected')" 
+                                        class="px-4 py-2 rounded ${state.filter === 'detected' ? 'bg-green-600 text-white' : 'bg-gray-200'}">
+                                    検出 (${detectedCount})
+                                </button>
+                                <button onclick="setResultsFilter('undetected')" 
+                                        class="px-4 py-2 rounded ${state.filter === 'undetected' ? 'bg-gray-600 text-white' : 'bg-gray-200'}">
+                                    未検出 (${state.results.length - detectedCount})
+                                </button>
+                            </div>
+                            <button onclick="downloadResults('${state.batchId}')" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                                <i class="fas fa-download"></i> CSV出力
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Scrollable results area -->
+                    <div class="flex-1 overflow-y-auto p-6">
+                        <div class="space-y-3">
+                            ${pageResults.length > 0 ? pageResults.map((r, i) => `
+                            <div class="border rounded p-3 ${r.detected ? 'bg-green-50' : 'bg-gray-50'}">
+                                <div class="flex justify-between">
+                                    <div>
+                                        <strong>ASIN:</strong> ${r.asin} 
+                                        ${r.detected ? `<span class="text-green-600 ml-2"><i class="fas fa-check-circle"></i> 検出</span>` : ''}
+                                    </div>
+                                    <div class="text-sm text-gray-500">#${startIndex + i + 1}</div>
+                                </div>
+                                <div class="text-xs text-gray-600 mt-1">
+                                    パス: <a href="#" onclick="showImageWithDetections('${r.image_path}', ${JSON.stringify(r.detections || []).replace(/"/g, '&quot;')}); return false;" 
+                                           class="text-blue-600 hover:underline">${r.image_path}</a>
+                                </div>
+                                ${r.detected ? `
+                                    <div class="mt-2">
+                                        <strong>ラベル:</strong> ${r.labels.join(', ')}<br>
+                                        <strong>信頼度:</strong> ${r.confidence_scores.map(c => (c * 100).toFixed(1) + '%').join(', ')}
+                                    </div>
+                                ` : ''}
+                                ${r.error ? `<div class="text-red-600 mt-2"><i class="fas fa-exclamation-triangle"></i> ${r.error}</div>` : ''}
+                            </div>
+                        `).join('') : '<p class="text-gray-500">結果がありません</p>'}
+                        </div>
+                    </div>
+                    
+                    <!-- Pagination controls -->
+                    ${totalPages > 1 ? `
+                    <div class="p-4 border-t flex items-center justify-between">
+                        <div class="text-sm text-gray-600">
+                            ${filteredResults.length}件中 ${startIndex + 1}-${Math.min(startIndex + state.itemsPerPage, filteredResults.length)}件を表示
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="changePage(1)" 
+                                    class="px-3 py-1 rounded ${state.currentPage === 1 ? 'bg-gray-200 text-gray-400' : 'bg-gray-200 hover:bg-gray-300'}"
+                                    ${state.currentPage === 1 ? 'disabled' : ''}>
+                                <i class="fas fa-angle-double-left"></i>
+                            </button>
+                            <button onclick="changePage(${state.currentPage - 1})" 
+                                    class="px-3 py-1 rounded ${state.currentPage === 1 ? 'bg-gray-200 text-gray-400' : 'bg-gray-200 hover:bg-gray-300'}"
+                                    ${state.currentPage === 1 ? 'disabled' : ''}>
+                                <i class="fas fa-angle-left"></i>
+                            </button>
+                            <span class="px-3 py-1">
+                                ${state.currentPage} / ${totalPages}
+                            </span>
+                            <button onclick="changePage(${state.currentPage + 1})" 
+                                    class="px-3 py-1 rounded ${state.currentPage === totalPages ? 'bg-gray-200 text-gray-400' : 'bg-gray-200 hover:bg-gray-300'}"
+                                    ${state.currentPage === totalPages ? 'disabled' : ''}>
+                                <i class="fas fa-angle-right"></i>
+                            </button>
+                            <button onclick="changePage(${totalPages})" 
+                                    class="px-3 py-1 rounded ${state.currentPage === totalPages ? 'bg-gray-200 text-gray-400' : 'bg-gray-200 hover:bg-gray-300'}"
+                                    ${state.currentPage === totalPages ? 'disabled' : ''}>
+                                <i class="fas fa-angle-double-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        // フィルター変更
+        function setResultsFilter(filter) {
+            window.resultsModalState.filter = filter;
+            window.resultsModalState.currentPage = 1; // Reset to first page
+            updateResultsModal();
+        }
+        
+        // ページ変更
+        function changePage(page) {
+            if (window.resultsModalState) {
+                window.resultsModalState.currentPage = page;
+                updateResultsModal();
+            }
+        }
+        
+        // 結果をCSVでダウンロード
+        async function downloadResults(batchId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/batch/${batchId}/results`);
+                const results = await response.json();
+                
+                // CSV作成
+                const headers = ['ASIN', 'Seller ID', 'Detected', 'Labels', 'Confidence Scores', 'Image Path', 'Error'];
+                const rows = results.results.map(r => [
+                    r.asin,
+                    r.seller_id,
+                    r.detected ? 'Yes' : 'No',
+                    (r.labels || []).join('; '),
+                    (r.confidence_scores || []).map(s => (s * 100).toFixed(1) + '%').join('; '),
+                    r.image_path,
+                    r.error || ''
+                ]);
+                
+                let csv = headers.join(',') + '\n';
+                rows.forEach(row => {
+                    csv += row.map(cell => `"${(cell || '').toString().replace(/"/g, '""')}"`).join(',') + '\n';
+                });
+                
+                // ダウンロード
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `inspection_results_${batchId}.csv`;
+                link.click();
+            } catch (error) {
+                console.error('Failed to download results:', error);
+                alert('結果のダウンロードに失敗しました');
+            }
+        }
+        
+        // 画像とバウンディングボックスを表示
+        function showImageWithDetections(imagePath, detections) {
+            // 既存の画像モーダルを削除
+            const existingModal = document.getElementById('imageModal');
+            if (existingModal) existingModal.remove();
+            
+            const modal = document.createElement('div');
+            modal.id = 'imageModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+            
+            const imageUrl = `${API_BASE_URL}/inspection/image?image_path=${encodeURIComponent(imagePath)}`;
+            
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg p-4 max-w-5xl max-h-screen overflow-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold">画像検査結果</h3>
+                        <button onclick="document.getElementById('imageModal').remove()" class="text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times text-2xl"></i>
+                        </button>
+                    </div>
+                    <div class="relative inline-block">
+                        <img id="detectionImage" src="${imageUrl}" alt="検査画像" class="max-w-full h-auto" onload="drawBoundingBoxes(this, ${JSON.stringify(detections).replace(/"/g, '&quot;')})">
+                        <canvas id="bboxCanvas" style="position: absolute; top: 0; left: 0; pointer-events: none;"></canvas>
+                    </div>
+                    <div class="mt-4 text-sm text-gray-600">
+                        <p>パス: ${imagePath}</p>
+                        ${detections && detections.length > 0 ? `
+                            <p class="mt-2">検出数: ${detections.length}</p>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+        
+        // バウンディングボックスを描画
+        function drawBoundingBoxes(img, detections) {
+            const canvas = document.getElementById('bboxCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // キャンバスサイズを画像に合わせる
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            canvas.style.width = img.width + 'px';
+            canvas.style.height = img.height + 'px';
+            
+            if (!detections || detections.length === 0) return;
+            
+            // バウンディングボックスを描画
+            detections.forEach((detection, index) => {
+                if (detection.bbox) {
+                    const [x1, y1, x2, y2] = detection.bbox;
+                    const width = x2 - x1;
+                    const height = y2 - y1;
+                    
+                    // 色を設定（信頼度に応じて色を変える）
+                    const confidence = detection.confidence || 0;
+                    const hue = confidence * 120; // 0-120 (赤から緑)
+                    ctx.strokeStyle = `hsl(${hue}, 100%, 50%)`;
+                    ctx.lineWidth = 3;
+                    
+                    // ボックスを描画
+                    ctx.strokeRect(x1, y1, width, height);
+                    
+                    // ラベルと信頼度を表示
+                    const label = detection.label || `Object ${index + 1}`;
+                    const text = `${label} (${(confidence * 100).toFixed(1)}%)`;
+                    
+                    ctx.fillStyle = ctx.strokeStyle;
+                    ctx.fillRect(x1, y1 - 25, ctx.measureText(text).width + 10, 25);
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.font = '16px Arial';
+                    ctx.fillText(text, x1 + 5, y1 - 5);
+                }
+            });
+        }
+
+        // 統計情報の読み込み
+        async function loadStatistics() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/dashboard`);
+                const data = await response.json();
+                
+                const statsDiv = document.getElementById('statistics');
+                
+                // データが存在しない場合のデフォルト値
+                const stats = data.statistics || {};
+                const totalInspections = stats.total_inspections || 0;
+                const detectionRate = stats.detection_rate || 0;
+                const inspectionsToday = stats.inspections_today || 0;
+                
+                statsDiv.innerHTML = `
+                    <div class="bg-blue-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-2">総検査数</h3>
+                        <p class="text-3xl font-bold text-blue-600">
+                            ${totalInspections.toLocaleString()}
+                        </p>
+                    </div>
+                    <div class="bg-green-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-2">検出率</h3>
+                        <p class="text-3xl font-bold text-green-600">
+                            ${(detectionRate * 100).toFixed(1)}%
+                        </p>
+                    </div>
+                    <div class="bg-purple-50 p-6 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-2">本日の検査数</h3>
+                        <p class="text-3xl font-bold text-purple-600">
+                            ${inspectionsToday.toLocaleString()}
+                        </p>
+                    </div>
+                `;
+                
+                // GPU情報の更新
+                if (data.gpu_status) {
+                    updateGPUStatus(data.gpu_status);
+                }
+            } catch (error) {
+                console.error('Failed to load statistics:', error);
+                document.getElementById('statistics').innerHTML = 
+                    '<p class="text-gray-500 text-center">統計情報の読み込みに失敗しました</p>';
+            }
+        }
+
+        // GPU状態の更新
+        function updateGPUStatus(gpuStatus) {
+            const gpuInfo = document.getElementById('gpuInfo');
+            const gpuRadio = document.querySelector('input[name="device_mode"][value="gpu"]');
+            const cpuRadio = document.querySelector('input[name="device_mode"][value="cpu"]');
+            const gpuLoadSection = document.getElementById('gpuLoadSection');
+            
+            if (gpuStatus.available) {
+                gpuInfo.innerHTML = `
+                    <span class="text-green-600">
+                        <i class="fas fa-check-circle"></i> ${gpuStatus.device_name} 
+                        (${gpuStatus.memory_allocated.toFixed(1)}GB / ${gpuStatus.memory_reserved.toFixed(1)}GB)
+                    </span>
+                `;
+                // GPUが利用可能な場合はGPUモードを有効化
+                gpuRadio.disabled = false;
+            } else {
+                gpuInfo.innerHTML = '<span class="text-yellow-600"><i class="fas fa-exclamation-triangle"></i> GPU not available (CPU mode only)</span>';
+                // GPUが利用不可の場合はGPUモードを無効化
+                gpuRadio.disabled = true;
+                cpuRadio.checked = true;
+            }
+            
+            // デバイスモード変更時のGPU負荷率表示制御
+            document.querySelectorAll('input[name="device_mode"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'gpu') {
+                        gpuLoadSection.style.display = 'block';
+                    } else {
+                        gpuLoadSection.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // デバイス情報の取得
+        async function loadDeviceInfo() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/inspection/device-info`);
+                const info = await response.json();
+                
+                // GPU情報を更新
+                updateGPUStatus(info.gpu_status);
+                
+                // 現在のデバイスモードを表示
+                const currentDevice = info.current_device_mode || 'cpu';
+                document.querySelector(`input[name="device_mode"][value="${currentDevice}"]`).checked = true;
+            } catch (error) {
+                console.error('Failed to load device info:', error);
+            }
+        }
+        
+        // デフォルト設定値
+        const DEFAULT_SETTINGS = {
+            max_items: 1000,
+            confidence_threshold: 0.5,
+            max_detections: 10,
+            gpu_load_rate: 80,
+            // CPU設定
+            cpu_batch_size: 12,
+            cpu_parallel_processes: 10,
+            cpu_processing_timeout: 180,
+            cpu_retry_count: 2,
+            // GPU設定
+            gpu_batch_size: 96,
+            gpu_parallel_processes: 6,
+            gpu_processing_timeout: 120,
+            gpu_retry_count: 1,
+            // UI設定
+            results_per_page: 50,
+            auto_refresh_interval: 20
+        };
+        
+        // 設定の読み込み
+        function loadSettings() {
+            const savedSettings = localStorage.getItem('inspectionSettings');
+            const settings = savedSettings ? JSON.parse(savedSettings) : DEFAULT_SETTINGS;
+            
+            // フォームに設定値を適用
+            document.getElementById('defaultMaxItems').value = settings.max_items;
+            document.getElementById('defaultConfidenceThreshold').value = settings.confidence_threshold;
+            document.getElementById('defaultMaxDetections').value = settings.max_detections;
+            document.getElementById('defaultGpuLoadRate').value = settings.gpu_load_rate;
+            document.getElementById('defaultGpuLoadValue').textContent = settings.gpu_load_rate;
+            
+            // CPU設定
+            document.getElementById('cpuBatchSize').value = settings.cpu_batch_size;
+            document.getElementById('cpuParallelProcesses').value = settings.cpu_parallel_processes;
+            document.getElementById('cpuProcessingTimeout').value = settings.cpu_processing_timeout;
+            document.getElementById('cpuRetryCount').value = settings.cpu_retry_count;
+            
+            // GPU設定
+            document.getElementById('gpuBatchSize').value = settings.gpu_batch_size;
+            document.getElementById('gpuParallelProcesses').value = settings.gpu_parallel_processes;
+            document.getElementById('gpuProcessingTimeout').value = settings.gpu_processing_timeout;
+            document.getElementById('gpuRetryCount').value = settings.gpu_retry_count;
+            
+            // UI設定
+            document.getElementById('resultsPerPage').value = settings.results_per_page;
+            document.getElementById('autoRefreshInterval').value = settings.auto_refresh_interval;
+        }
+        
+        // 設定の保存
+        function saveSettings() {
+            const settings = {
+                max_items: parseInt(document.getElementById('defaultMaxItems').value),
+                confidence_threshold: parseFloat(document.getElementById('defaultConfidenceThreshold').value),
+                max_detections: parseInt(document.getElementById('defaultMaxDetections').value),
+                gpu_load_rate: parseInt(document.getElementById('defaultGpuLoadRate').value),
+                // CPU設定
+                cpu_batch_size: parseInt(document.getElementById('cpuBatchSize').value),
+                cpu_parallel_processes: parseInt(document.getElementById('cpuParallelProcesses').value),
+                cpu_processing_timeout: parseInt(document.getElementById('cpuProcessingTimeout').value),
+                cpu_retry_count: parseInt(document.getElementById('cpuRetryCount').value),
+                // GPU設定
+                gpu_batch_size: parseInt(document.getElementById('gpuBatchSize').value),
+                gpu_parallel_processes: parseInt(document.getElementById('gpuParallelProcesses').value),
+                gpu_processing_timeout: parseInt(document.getElementById('gpuProcessingTimeout').value),
+                gpu_retry_count: parseInt(document.getElementById('gpuRetryCount').value),
+                // UI設定
+                results_per_page: parseInt(document.getElementById('resultsPerPage').value),
+                auto_refresh_interval: parseInt(document.getElementById('autoRefreshInterval').value)
+            };
+            
+            localStorage.setItem('inspectionSettings', JSON.stringify(settings));
+            
+            // 新規検査フォームのデフォルト値を更新
+            applySettingsToForm();
+            
+            alert('設定を保存しました');
+        }
+        
+        // 設定をリセット
+        function resetSettings() {
+            if (confirm('設定をデフォルト値に戻しますか？')) {
+                localStorage.removeItem('inspectionSettings');
+                loadSettings();
+                applySettingsToForm();
+                alert('設定をリセットしました');
+            }
+        }
+        
+        // 新規検査フォームに設定値を適用
+        function applySettingsToForm() {
+            const savedSettings = localStorage.getItem('inspectionSettings');
+            const settings = savedSettings ? JSON.parse(savedSettings) : DEFAULT_SETTINGS;
+            
+            // 新規検査フォームのデフォルト値を更新
+            if (document.querySelector('input[name="max_items"]')) {
+                document.querySelector('input[name="max_items"]').placeholder = settings.max_items;
+            }
+            if (document.querySelector('input[name="confidence_threshold"]')) {
+                document.querySelector('input[name="confidence_threshold"]').value = settings.confidence_threshold;
+            }
+            if (document.querySelector('input[name="max_detections"]')) {
+                document.querySelector('input[name="max_detections"]').value = settings.max_detections;
+            }
+            if (document.querySelector('input[name="gpu_load_rate"]')) {
+                document.querySelector('input[name="gpu_load_rate"]').value = settings.gpu_load_rate;
+                updateGPULoad(settings.gpu_load_rate);
+            }
+        }
+        
+        // デフォルトGPU負荷率の更新
+        function updateDefaultGPULoad(value) {
+            document.getElementById('defaultGpuLoadValue').textContent = value;
+        }
+        
+        // デバイス設定の切り替え
+        function switchDeviceSettings(device) {
+            // タブボタンの状態を更新
+            document.getElementById('cpuSettingsTab').className = device === 'cpu' 
+                ? 'flex-1 px-4 py-2 text-sm font-medium rounded-md bg-white shadow'
+                : 'flex-1 px-4 py-2 text-sm font-medium rounded-md text-gray-600';
+            document.getElementById('gpuSettingsTab').className = device === 'gpu' 
+                ? 'flex-1 px-4 py-2 text-sm font-medium rounded-md bg-white shadow'
+                : 'flex-1 px-4 py-2 text-sm font-medium rounded-md text-gray-600';
+            
+            // 設定パネルの表示切り替え
+            document.getElementById('cpuSettings').className = device === 'cpu' 
+                ? 'device-settings' 
+                : 'device-settings hidden';
+            document.getElementById('gpuSettings').className = device === 'gpu' 
+                ? 'device-settings' 
+                : 'device-settings hidden';
+        }
+        
+        // 設定フォームの送信
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('settingsForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                saveSettings();
+            });
+        });
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadModels();
+            loadStatistics();
+            loadDeviceInfo();
+            loadSettings();
+            applySettingsToForm();
+            
+            // 定期的に状態を更新
+            setInterval(() => {
+                if (document.getElementById('status-tab').classList.contains('active')) {
+                    loadBatchStatuses();
+                }
+            }, 2000);
+        });
+        
+        // ========== データセット管理関連の関数 ==========
+        
+        // データセット一覧の読み込み
+        async function loadDatasets() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/dataset/list`);
+                const datasets = await response.json();
+                
+                // 既存データセットのドロップダウンを更新
+                const destinationSelect = document.getElementById('destinationDataset');
+                const deleteSelect = document.getElementById('deleteDataset');
+                
+                // 選択肢をクリア
+                destinationSelect.innerHTML = '<option value="">既存のデータセットを選択...</option>';
+                destinationSelect.innerHTML += '<option value="__new__">新規データセットを作成</option>';
+                deleteSelect.innerHTML = '<option value="">データセットを選択...</option>';
+                
+                // データセットを追加
+                datasets.forEach(dataset => {
+                    destinationSelect.innerHTML += `<option value="${dataset.name}">${dataset.name}</option>`;
+                    deleteSelect.innerHTML += `<option value="${dataset.name}">${dataset.name}</option>`;
+                });
+            } catch (error) {
+                console.error('Failed to load datasets:', error);
+            }
+        }
+        
+        // 新規データセット入力の切り替え
+        function toggleNewDatasetInput() {
+            const select = document.getElementById('destinationDataset');
+            const newInput = document.getElementById('newDatasetName');
+            
+            if (select.value === '__new__') {
+                newInput.classList.remove('hidden');
+                newInput.required = true;
+            } else {
+                newInput.classList.add('hidden');
+                newInput.required = false;
+                newInput.value = '';
+            }
+        }
+        
+        // スプリット比率の合計を更新
+        function updateRatioSum() {
+            const trainRatio = parseFloat(document.getElementById('trainRatio').value) || 0;
+            const valRatio = parseFloat(document.getElementById('valRatio').value) || 0;
+            const testRatio = parseFloat(document.getElementById('testRatio').value) || 0;
+            
+            const sum = trainRatio + valRatio + testRatio;
+            document.getElementById('ratioSum').textContent = sum.toFixed(2);
+            
+            const errorSpan = document.getElementById('ratioError');
+            const splitButton = document.getElementById('splitButton');
+            
+            if (Math.abs(sum - 1.0) > 0.001) {
+                errorSpan.classList.remove('hidden');
+                splitButton.disabled = true;
+            } else {
+                errorSpan.classList.add('hidden');
+                splitButton.disabled = false;
+            }
+        }
+        
+        // データセットスプリットフォームの送信
+        document.getElementById('datasetSplitForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                source_directory: document.getElementById('sourceDirectory').value,
+                destination_dataset: document.getElementById('destinationDataset').value,
+                new_dataset_name: document.getElementById('newDatasetName').value,
+                train_ratio: parseFloat(document.getElementById('trainRatio').value),
+                val_ratio: parseFloat(document.getElementById('valRatio').value),
+                test_ratio: parseFloat(document.getElementById('testRatio').value),
+                random_seed: parseInt(document.getElementById('randomSeed').value)
+            };
+            
+            // 新規データセットの場合は名前を使用
+            if (formData.destination_dataset === '__new__') {
+                formData.destination_dataset = formData.new_dataset_name;
+                formData.create_new = true;
+            }
+            
+            // 結果エリアを表示
+            const resultArea = document.getElementById('splitResultArea');
+            const progressBar = resultArea.querySelector('.bg-blue-600');
+            const resultDiv = document.getElementById('splitResult');
+            
+            resultArea.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            resultDiv.innerHTML = 'スプリット処理を開始しています...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/dataset/split`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                // 進捗バーを100%に
+                progressBar.style.width = '100%';
+                
+                // 結果を表示
+                resultDiv.innerHTML = `
+                    <div class="text-green-600 font-bold mb-2">スプリット完了！</div>
+                    <div>Train: ${result.train_count}件 (${result.train_percentage.toFixed(1)}%)</div>
+                    <div>Validation: ${result.val_count}件 (${result.val_percentage.toFixed(1)}%)</div>
+                    <div>Test: ${result.test_count}件 (${result.test_percentage.toFixed(1)}%)</div>
+                    <div>スキップ: ${result.skipped_count}件 (重複)</div>
+                    <div class="font-bold mt-2">合計処理: ${result.total_processed}件</div>
+                `;
+                
+                // データセット一覧を更新
+                loadDatasets();
+            } catch (error) {
+                console.error('Failed to split dataset:', error);
+                resultDiv.innerHTML = `<div class="text-red-600">エラー: ${error.message}</div>`;
+            }
+        });
+        
+        // クラス削除フォームの送信
+        document.getElementById('classDeleteForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const deleteButton = document.getElementById('deleteButton');
+            const confirmCheckbox = document.getElementById('confirmDelete');
+            
+            if (!confirmCheckbox.checked) {
+                alert('削除を実行するには確認チェックボックスをチェックしてください。');
+                return;
+            }
+            
+            const dataset = document.getElementById('deleteDataset').value;
+            const className = document.getElementById('deleteClassName').value;
+            
+            if (!dataset || !className) {
+                alert('データセットとクラス名を入力してください。');
+                return;
+            }
+            
+            // 確認ダイアログ
+            if (!confirm(`データセット "${dataset}" から クラス "${className}" を削除しますか？\nこの操作は取り消せません。`)) {
+                return;
+            }
+            
+            deleteButton.disabled = true;
+            deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 削除中...';
+            
+            // 結果エリアを表示
+            const resultArea = document.getElementById('deleteResultArea');
+            const resultDiv = document.getElementById('deleteResult');
+            
+            resultArea.classList.remove('hidden');
+            resultDiv.innerHTML = '削除処理を実行しています...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/dataset/delete-class`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        dataset_name: dataset,
+                        class_name: className
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                // 結果を表示
+                resultDiv.innerHTML = `
+                    <div class="text-red-600 font-bold mb-2">削除完了！</div>
+                    <div>Train: ${result.train_deleted}件削除</div>
+                    <div>Validation: ${result.val_deleted}件削除</div>
+                    <div>Test: ${result.test_deleted}件削除</div>
+                    <div class="font-bold mt-2">合計削除: ${result.total_deleted}件</div>
+                `;
+                
+                // フォームをリセット
+                document.getElementById('classDeleteForm').reset();
+                confirmCheckbox.checked = false;
+            } catch (error) {
+                console.error('Failed to delete class:', error);
+                resultDiv.innerHTML = `<div class="text-red-600">エラー: ${error.message}</div>`;
+            } finally {
+                deleteButton.disabled = false;
+                deleteButton.innerHTML = '<i class="fas fa-trash"></i> 削除実行';
+            }
+        });
+    </script>
+</body>
+</html>

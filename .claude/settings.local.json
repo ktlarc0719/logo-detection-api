@@ -28,7 +28,11 @@
       "Bash(git branch:*)",
       "Bash(docker buildx:*)",
       "Bash(wget:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(pkill:*)",
+      "Bash(journalctl:*)",
+      "Bash(pip3 list:*)"
     ],
     "deny": []
   }

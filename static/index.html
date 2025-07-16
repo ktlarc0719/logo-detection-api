@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Logo Detection</title>
+    <title>Logo Detection - Deprecated</title>
     <style>
         * {
             margin: 0;
@@ -216,9 +216,6 @@
     <div class="container">
         <h1>Logo Detection</h1>
         <div style="text-align: center; margin-bottom: 20px;">
-            <a href="/ui/batch" style="color: #2196F3; text-decoration: none;">
-                → Switch to Batch URL Processing
-            </a>
         </div>
         
         <div class="upload-section" id="uploadSection">
@@ -360,7 +357,8 @@
                 const formData = new FormData();
                 formData.append('file', blob, 'image.png');
                 
-                const response = await fetch('/api/v1/process/single', {
+                // Single detection endpoint has been removed
+                throw new Error('Single detection is no longer supported. Please use the inspection UI.');
                     method: 'POST',
                     body: formData
                 });

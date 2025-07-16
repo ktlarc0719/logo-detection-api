@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Inspection UI Test</title>
+</head>
+<body>
+    <h1>Inspection UI Debug Test</h1>
+    <p>This is a test page to verify which file is being served.</p>
+    <p>Timestamp: <span id="timestamp"></span></p>
+    
+    <h2>Test iframe loading:</h2>
+    <iframe src="/ui/inspection" width="100%" height="600" style="border: 2px solid red;"></iframe>
+    
+    <script>
+        document.getElementById('timestamp').textContent = new Date().toISOString();
+    </script>
+</body>
+</html>

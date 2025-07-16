@@ -38,3 +38,8 @@ gunicorn>=21.2.0
 
 # UI dependencies
 streamlit>=1.28.0
+
+# Data visualization and analysis
+matplotlib>=3.7.0
+pandas>=2.0.0
+pyyaml>=6.0.0

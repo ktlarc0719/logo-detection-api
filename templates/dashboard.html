@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logo Detection System - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-width: 250px;
+            --header-height: 60px;
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--header-height);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,.1);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: var(--header-height);
+            left: 0;
+            width: var(--sidebar-width);
+            height: calc(100vh - var(--header-height));
+            background-color: #2c3e50;
+            overflow-y: auto;
+            box-shadow: 2px 0 4px rgba(0,0,0,.1);
+        }
+
+        .sidebar-section {
+            padding: 10px 0;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-section-title {
+            color: #95a5a6;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 10px 20px 5px;
+            margin: 0;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 12px 20px;
+            color: #ecf0f1;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            background-color: #34495e;
+            color: white;
+            padding-left: 25px;
+        }
+
+        .nav-item.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .nav-item i {
+            width: 20px;
+            margin-right: 10px;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            margin-top: var(--header-height);
+            padding: 20px;
+            min-height: calc(100vh - var(--header-height));
+        }
+
+        .content-frame {
+            width: 100%;
+            height: calc(100vh - var(--header-height) - 40px);
+            border: none;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,.1);
+        }
+
+        /* Dashboard Cards */
+        .dashboard-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,.1);
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,.15);
+        }
+
+        .metric-card {
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.875rem;
+            margin-top: 10px;
+        }
+
+        .quick-action {
+            display: block;
+            padding: 15px 20px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .quick-action:hover {
+            color: white;
+            transform: translateX(5px);
+            box-shadow: 0 4px 8px rgba(0,0,0,.2);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .toggle-sidebar {
+                display: block;
+            }
+        }
+
+        .toggle-sidebar {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            margin-right: 20px;
+            cursor: pointer;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 400px;
+            color: #6c757d;
+        }
+
+        .loading i {
+            font-size: 3rem;
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Status Indicators */
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-dot.online { background-color: #28a745; }
+        .status-dot.offline { background-color: #dc3545; }
+        .status-dot.warning { background-color: #ffc107; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <button class="toggle-sidebar" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+        </button>
+        <h1><i class="fas fa-shield-alt"></i> Logo Detection System</h1>
+        <div class="ms-auto">
+            <span id="systemStatus">
+                <span class="status-dot online"></span>
+                <span style="font-size: 0.9rem;">システム稼働中</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-section">
+            <h6 class="sidebar-section-title">メイン</h6>
+            <a href="#" class="nav-item active" onclick="showDashboard(event)">
+                <i class="fas fa-tachometer-alt"></i> ダッシュボード
+            </a>
+        </div>
+
+        <div class="sidebar-section">
+            <h6 class="sidebar-section-title">検出機能</h6>
+            <a href="#" class="nav-item" onclick="loadPage(event, '/ui/inspection')">
+                <i class="fas fa-search"></i> 画像検査
+            </a>
+        </div>
+
+        <div class="sidebar-section">
+            <h6 class="sidebar-section-title">機械学習</h6>
+            <a href="#" class="nav-item" onclick="loadPage(event, '/ui/ml')">
+                <i class="fas fa-brain"></i> MLシステム
+            </a>
+            <a href="#" class="nav-item" onclick="showSection(event, 'training-monitor')">
+                <i class="fas fa-chart-line"></i> トレーニング監視
+            </a>
+            <a href="#" class="nav-item" onclick="showSection(event, 'model-management')">
+                <i class="fas fa-cube"></i> モデル管理
+            </a>
+        </div>
+
+        <div class="sidebar-section">
+            <h6 class="sidebar-section-title">データ管理</h6>
+            <a href="#" class="nav-item" onclick="showSection(event, 'dataset-management')">
+                <i class="fas fa-database"></i> データセット
+            </a>
+            <a href="#" class="nav-item" onclick="showSection(event, 'logo-management')">
+                <i class="fas fa-tags"></i> ロゴ管理
+            </a>
+        </div>
+
+        <div class="sidebar-section">
+            <h6 class="sidebar-section-title">システム</h6>
+            <a href="#" class="nav-item" onclick="showSection(event, 'system-status')">
+                <i class="fas fa-server"></i> システム状態
+            </a>
+            <a href="#" class="nav-item" onclick="showSection(event, 'api-docs')">
+                <i class="fas fa-book"></i> APIドキュメント
+            </a>
+            <a href="#" class="nav-item" onclick="showSection(event, 'settings')">
+                <i class="fas fa-cog"></i> 設定
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Dashboard View -->
+        <div id="dashboard-view">
+            <h2 class="mb-4">ダッシュボード</h2>
+            
+            <!-- Metrics Row -->
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="dashboard-card metric-card">
+                        <div class="metric-value" id="totalDetections">0</div>
+                        <div class="metric-label">総検出数</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="dashboard-card metric-card">
+                        <div class="metric-value" id="activeModels">0</div>
+                        <div class="metric-label">アクティブモデル</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="dashboard-card metric-card">
+                        <div class="metric-value" id="processingSpeed">0</div>
+                        <div class="metric-label">処理速度 (img/s)</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="dashboard-card metric-card">
+                        <div class="metric-value" id="systemUptime">0h</div>
+                        <div class="metric-label">稼働時間</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="dashboard-card">
+                        <h4>クイックアクション</h4>
+                        <a href="#" class="quick-action" onclick="loadPage(event, '/ui/ml')">
+                            <i class="fas fa-graduation-cap"></i> 新しいモデルをトレーニング
+                        </a>
+                        <a href="#" class="quick-action" onclick="loadPage(event, '/ui/inspection')">
+                            <i class="fas fa-play"></i> 検査バッチを実行
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="dashboard-card">
+                        <h4>最近のアクティビティ</h4>
+                        <div id="recentActivity">
+                            <div class="loading">
+                                <i class="fas fa-spinner"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Overview -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="dashboard-card">
+                        <h4>システム概要</h4>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <h6>利用可能な機能</h6>
+                                <ul>
+                                    <li>商品画像の自動検査</li>
+                                    <li>カスタムモデルのトレーニング</li>
+                                    <li>リアルタイム性能監視</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-4">
+                                <h6>対応モデル</h6>
+                                <ul>
+                                    <li>YOLOv8 (n/s/m/l/x)</li>
+                                    <li>一般ロゴ検出モデル</li>
+                                    <li>商標専用モデル</li>
+                                    <li>カスタムトレーニングモデル</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-4">
+                                <h6>システム情報</h6>
+                                <ul id="systemInfo">
+                                    <li>GPU: 確認中...</li>
+                                    <li>CPU使用率: 確認中...</li>
+                                    <li>メモリ使用率: 確認中...</li>
+                                    <li>ディスク使用率: 確認中...</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Frame View (for loading other pages) -->
+        <div id="frame-view" style="display: none;">
+            <iframe id="content-frame" class="content-frame"></iframe>
+        </div>
+
+        <!-- Other Sections -->
+        <div id="training-monitor" class="section-view" style="display: none;">
+            <h2>トレーニング監視</h2>
+            <div class="dashboard-card">
+                <p>現在実行中のトレーニングジョブを監視します。</p>
+                <button class="btn btn-primary" onclick="loadPage(event, '/ui/ml')">
+                    MLシステムを開く
+                </button>
+            </div>
+        </div>
+
+        <div id="model-management" class="section-view" style="display: none;">
+            <h2>モデル管理</h2>
+            <div class="dashboard-card">
+                <div id="modelList">
+                    <div class="loading">
+                        <i class="fas fa-spinner"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="dataset-management" class="section-view" style="display: none;">
+            <h2>データセット管理</h2>
+            <div class="dashboard-card">
+                <div id="datasetList">
+                    <div class="loading">
+                        <i class="fas fa-spinner"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="logo-management" class="section-view" style="display: none;">
+            <h2>ロゴ管理</h2>
+            <div class="dashboard-card">
+                <p>登録されているロゴとブランドを管理します。</p>
+                <div id="logoStats">
+                    <div class="loading">
+                        <i class="fas fa-spinner"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="system-status" class="section-view" style="display: none;">
+            <h2>システム状態</h2>
+            <div class="dashboard-card">
+                <div id="systemStatusDetails">
+                    <div class="loading">
+                        <i class="fas fa-spinner"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="api-docs" class="section-view" style="display: none;">
+            <h2>APIドキュメント</h2>
+            <div class="dashboard-card">
+                <p>詳細なAPIドキュメントは以下のリンクから確認できます：</p>
+                <a href="/docs" target="_blank" class="btn btn-primary">
+                    <i class="fas fa-external-link-alt"></i> Swagger UIを開く
+                </a>
+                <a href="/redoc" target="_blank" class="btn btn-secondary ms-2">
+                    <i class="fas fa-external-link-alt"></i> ReDocを開く
+                </a>
+            </div>
+        </div>
+
+        <div id="settings" class="section-view" style="display: none;">
+            <h2>設定</h2>
+            <div class="dashboard-card">
+                <h4>システム設定</h4>
+                <form id="settingsForm">
+                    <div class="mb-3">
+                        <label class="form-label">デフォルトモデル</label>
+                        <select class="form-select" id="defaultModel">
+                            <option>読み込み中...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">バッチサイズ</label>
+                        <input type="number" class="form-control" id="batchSize" value="32">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">信頼度しきい値</label>
+                        <input type="number" class="form-control" id="confidenceThreshold" 
+                               value="0.25" min="0" max="1" step="0.05">
+                    </div>
+                    <button type="submit" class="btn btn-primary">設定を保存</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Toggle sidebar for mobile
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('show');
+        }
+
+        // Show dashboard
+        function showDashboard(event) {
+            event.preventDefault();
+            hideAllViews();
+            document.getElementById('dashboard-view').style.display = 'block';
+            setActiveNav(event.target);
+            loadDashboardData();
+        }
+
+        // Show section
+        function showSection(event, sectionId) {
+            event.preventDefault();
+            hideAllViews();
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.style.display = 'block';
+                loadSectionData(sectionId);
+            }
+            setActiveNav(event.target);
+        }
+
+        // Load page in iframe
+        function loadPage(event, url) {
+            event.preventDefault();
+            hideAllViews();
+            const frameView = document.getElementById('frame-view');
+            const frame = document.getElementById('content-frame');
+            frameView.style.display = 'block';
+            frame.src = url;
+            setActiveNav(event.target);
+        }
+
+        // Hide all views
+        function hideAllViews() {
+            document.getElementById('dashboard-view').style.display = 'none';
+            document.getElementById('frame-view').style.display = 'none';
+            document.querySelectorAll('.section-view').forEach(section => {
+                section.style.display = 'none';
+            });
+        }
+
+        // Set active navigation
+        function setActiveNav(element) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            element.classList.add('active');
+        }
+
+        // Load dashboard data
+        async function loadDashboardData() {
+            try {
+                // Load system status
+                const statusResponse = await fetch('/api/v1/ml/status');
+                const status = await statusResponse.json();
+                
+                // Update system info
+                const systemInfo = document.getElementById('systemInfo');
+                systemInfo.innerHTML = `
+                    <li>GPU: ${status.gpu_available ? 'Available' : 'Not Available'}</li>
+                    <li>CPU使用率: ${status.cpu_usage.toFixed(1)}%</li>
+                    <li>メモリ使用率: ${status.memory_usage.toFixed(1)}%</li>
+                    <li>ディスク使用率: ${status.disk_usage.percent.toFixed(1)}%</li>
+                `;
+
+                // Load metrics
+                const metricsResponse = await fetch('/api/v1/metrics');
+                const metrics = await metricsResponse.json();
+                
+                document.getElementById('totalDetections').textContent = 
+                    metrics.total_detections || '0';
+                document.getElementById('processingSpeed').textContent = 
+                    metrics.average_processing_speed?.toFixed(1) || '0';
+
+                // Load models count
+                const modelsResponse = await fetch('/api/v1/models');
+                const models = await modelsResponse.json();
+                document.getElementById('activeModels').textContent = models.length;
+
+                // Calculate uptime (dummy for now)
+                const uptimeHours = Math.floor(Math.random() * 100);
+                document.getElementById('systemUptime').textContent = `${uptimeHours}h`;
+
+                // Load recent activity
+                loadRecentActivity();
+
+            } catch (error) {
+                console.error('Failed to load dashboard data:', error);
+            }
+        }
+
+        // Load recent activity
+        async function loadRecentActivity() {
+            const activityDiv = document.getElementById('recentActivity');
+            
+            try {
+                // This would be replaced with actual activity API
+                const activities = [
+                    { time: '5分前', action: '画像検査完了', detail: '150画像検査' },
+                    { time: '15分前', action: 'モデルトレーニング開始', detail: 'logo_detector_v33' },
+                    { time: '1時間前', action: '新しいロゴ追加', detail: 'BRAND_XYZ' },
+                    { time: '2時間前', action: 'システム起動', detail: 'Version 3.0' }
+                ];
+
+                let html = '<ul class="list-unstyled">';
+                activities.forEach(activity => {
+                    html += `
+                        <li class="mb-2">
+                            <small class="text-muted">${activity.time}</small><br>
+                            <strong>${activity.action}</strong> - ${activity.detail}
+                        </li>
+                    `;
+                });
+                html += '</ul>';
+                
+                activityDiv.innerHTML = html;
+            } catch (error) {
+                activityDiv.innerHTML = '<p class="text-muted">アクティビティの読み込みに失敗しました</p>';
+            }
+        }
+
+        // Load section data
+        async function loadSectionData(sectionId) {
+            switch(sectionId) {
+                case 'model-management':
+                    loadModelList();
+                    break;
+                case 'dataset-management':
+                    loadDatasetList();
+                    break;
+                case 'logo-management':
+                    loadLogoStats();
+                    break;
+                case 'system-status':
+                    loadSystemStatus();
+                    break;
+                case 'settings':
+                    loadSettings();
+                    break;
+            }
+        }
+
+        // Load model list
+        async function loadModelList() {
+            const modelListDiv = document.getElementById('modelList');
+            
+            try {
+                const response = await fetch('/api/v1/ml/models');
+                const models = await response.json();
+                
+                let html = '<table class="table"><thead><tr>';
+                html += '<th>モデル名</th><th>プロジェクト</th><th>サイズ</th><th>作成日</th>';
+                html += '</tr></thead><tbody>';
+                
+                models.forEach(model => {
+                    const size = (model.size / 1024 / 1024).toFixed(1);
+                    const date = new Date(model.created_at * 1000).toLocaleDateString();
+                    html += `
+                        <tr>
+                            <td>${model.name}</td>
+                            <td>${model.project}</td>
+                            <td>${size} MB</td>
+                            <td>${date}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                modelListDiv.innerHTML = html;
+                
+            } catch (error) {
+                modelListDiv.innerHTML = '<p class="text-danger">モデルリストの読み込みに失敗しました</p>';
+            }
+        }
+
+        // Load dataset list
+        async function loadDatasetList() {
+            const datasetListDiv = document.getElementById('datasetList');
+            
+            try {
+                const response = await fetch('/api/v1/ml/datasets');
+                const datasets = await response.json();
+                
+                let html = '<table class="table"><thead><tr>';
+                html += '<th>データセット名</th><th>Train</th><th>Val</th><th>Test</th>';
+                html += '</tr></thead><tbody>';
+                
+                datasets.forEach(dataset => {
+                    html += `
+                        <tr>
+                            <td>${dataset.name}</td>
+                            <td>${dataset.has_train ? '✓' : '✗'}</td>
+                            <td>${dataset.has_val ? '✓' : '✗'}</td>
+                            <td>${dataset.has_test ? '✓' : '✗'}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                datasetListDiv.innerHTML = html;
+                
+            } catch (error) {
+                datasetListDiv.innerHTML = '<p class="text-danger">データセットリストの読み込みに失敗しました</p>';
+            }
+        }
+
+        // Load logo stats
+        async function loadLogoStats() {
+            const logoStatsDiv = document.getElementById('logoStats');
+            
+            try {
+                const response = await fetch('/api/v1/logos/classes');
+                const data = await response.json();
+                
+                let html = `<p>登録ロゴクラス数: <strong>${data.total_classes}</strong></p>`;
+                html += '<h5 class="mt-3">カテゴリ別</h5>';
+                html += '<ul>';
+                
+                for (const [category, classes] of Object.entries(data.classes_by_category)) {
+                    html += `<li>${category}: ${classes.length}クラス</li>`;
+                }
+                
+                html += '</ul>';
+                logoStatsDiv.innerHTML = html;
+                
+            } catch (error) {
+                logoStatsDiv.innerHTML = '<p class="text-danger">ロゴ統計の読み込みに失敗しました</p>';
+            }
+        }
+
+        // Load system status
+        async function loadSystemStatus() {
+            const statusDiv = document.getElementById('systemStatusDetails');
+            
+            try {
+                const response = await fetch('/api/v1/ml/status');
+                const status = await response.json();
+                
+                let html = '<div class="row">';
+                
+                // GPU Info
+                html += '<div class="col-md-6"><h5>GPU情報</h5>';
+                if (status.gpu_available && status.gpu_info) {
+                    html += `
+                        <ul>
+                            <li>デバイス: ${status.gpu_info.device_name}</li>
+                            <li>メモリ使用: ${status.gpu_info.memory_allocated.toFixed(2)} GB</li>
+                            <li>メモリ予約: ${status.gpu_info.memory_reserved.toFixed(2)} GB</li>
+                        </ul>
+                    `;
+                } else {
+                    html += '<p>GPU not available</p>';
+                }
+                html += '</div>';
+                
+                // System Resources
+                html += '<div class="col-md-6"><h5>システムリソース</h5>';
+                html += `
+                    <ul>
+                        <li>CPU使用率: ${status.cpu_usage.toFixed(1)}%</li>
+                        <li>メモリ使用率: ${status.memory_usage.toFixed(1)}%</li>
+                        <li>ディスク使用: ${status.disk_usage.used.toFixed(1)} GB / ${status.disk_usage.total.toFixed(1)} GB</li>
+                    </ul>
+                `;
+                html += '</div>';
+                
+                html += '</div>';
+                statusDiv.innerHTML = html;
+                
+            } catch (error) {
+                statusDiv.innerHTML = '<p class="text-danger">システム状態の読み込みに失敗しました</p>';
+            }
+        }
+
+        // Load settings
+        async function loadSettings() {
+            try {
+                // Load available models for default model setting
+                const response = await fetch('/api/v1/models');
+                const models = await response.json();
+                
+                const select = document.getElementById('defaultModel');
+                select.innerHTML = '';
+                
+                models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.name;
+                    option.textContent = model.display_name || model.name;
+                    select.appendChild(option);
+                });
+                
+                // Set current default
+                const currentModel = await fetch('/api/v1/models/current');
+                const current = await currentModel.json();
+                select.value = current.current_model;
+                
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardData();
+            
+            // Setup settings form
+            document.getElementById('settingsForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                // Settings save logic would go here
+                alert('設定を保存しました（デモ）');
+            });
+            
+            // Periodic refresh
+            setInterval(loadDashboardData, 30000); // Refresh every 30 seconds
+        });
+    </script>
+</body>
+</html>
